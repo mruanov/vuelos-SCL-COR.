@@ -25,37 +25,49 @@ def enviar_alerta(mensaje):
     requests.post(url, json=payload)
 
 def scrape_google_flights():
-    # URL más directa con fechas ISO
-    url = f"https://www.google.com/travel/flights/search?tfs=CBwQAhoeEgoyMDI2LTEwLTA5agwIAhIIL20vMGYyYnlyHhIKMjAyNi0xMC0xMmoMCBIIL20vMGYyYnlyIAEaA0NDTEABSAFQApgBAg"
-    # Ajustamos a la URL de tu búsqueda específica SCL-COR
     url = f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}"
     
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
+        # Usamos un contexto con idioma español y ventana grande para forzar una interfaz consistente
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            viewport={'width': 1280, 'height': 800},
+            locale="es-CL"
+        )
         page = context.new_page()
         print(f"Buscando en Google Flights: {url}")
-        page.goto(url, wait_until="networkidle")
         
         try:
-            # Esperar por el contenedor de precios más común en la nueva interfaz
-            page.wait_for_selector(".MJ7yc", timeout=30000) 
-            time.sleep(3)
+            page.goto(url, wait_until="networkidle", timeout=60000)
+            time.sleep(10) # Espera generosa para carga de precios dinámicos
             
-            # Intentar capturar el precio de la primera tarjeta de "Mejor vuelo"
-            precios = page.query_selector_all(".JMc5Xc") # Selector de precio en la lista
-            if not precios:
-                precios = page.query_selector_all("span[role='text']") # Respaldo
+            # Intentar múltiples selectores conocidos de Google Flights
+            selectors = [
+                ".MJ7yc .JMc5Xc",  # Precio en lista principal
+                ".YMlS1e",         # Precio destacado
+                "span[role='text']", # Respaldo de accesibilidad
+                "div[aria-label*='pesos']",
+                ".pI9Wbc"          # Selector antiguo
+            ]
             
-            for p_elem in precios:
-                texto = p_elem.inner_text()
-                if "$" in texto or "CLP" in texto or "USD" in texto:
-                    print(f"Precio detectado: {texto}")
-                    return {"plataforma": "Google Flights", "precio": texto, "url": url}
+            for selector in selectors:
+                precios = page.query_selector_all(selector)
+                for p_elem in precios:
+                    texto = p_elem.inner_text()
+                    if any(c in texto for c in ["$", "CLP", "USD"]):
+                        print(f"Precio detectado con {selector}: {texto}")
+                        browser.close()
+                        return {"plataforma": "Google Flights", "precio": texto, "url": url}
             
-            print("No se encontró un formato de precio válido.")
+            # Si llegamos aquí, falló la extracción
+            page.screenshot(path="error_capture.png")
+            print("No se encontró ningún formato de precio. Screenshot guardado.")
+            enviar_alerta("⚠️ El bot no pudo extraer el precio en esta vuelta. Es posible que Google haya cambiado el diseño o esté bloqueando la visualización. Revisaré el código.")
+            
         except Exception as e:
-            print(f"Error en Google Flights: {e}")
+            print(f"Error crítico en Google Flights: {e}")
+            enviar_alerta(f"❌ Error técnico en el bot: {str(e)[:100]}")
         
         browser.close()
     return None
