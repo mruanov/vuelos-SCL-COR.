@@ -137,32 +137,102 @@ def scrape_skyscanner():
     
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
+        # Usamos un contexto más "humano" para Skyscanner
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            viewport={'width': 1920, 'height': 1080},
             locale="es-CL"
         )
         page = context.new_page()
         print(f"Buscando en Skyscanner: {url}")
         
         try:
-            # Skyscanner a veces se queda colgado esperando 'networkidle', usamos 'commit' o 'domcontentloaded'
-            page.goto(url, wait_until="domcontentloaded", timeout=80000)
-            time.sleep(20) # Skyscanner necesita mucho tiempo para cargar resultados
+            page.goto(url, wait_until="domcontentloaded", timeout=90000)
+            # Intentar mover el mouse o hacer scroll para parecer humano
+            page.mouse.move(100, 100)
+            time.sleep(25) # Espera larga para que Skyscanner procese
             
-            # Intentar encontrar el precio por clase o texto
-            precios = page.query_selector_all("span[class*='Price_mainPrice']")
-            if not precios:
-                precios = page.query_selector_all("div[class*='Price_mainPrice']")
-            
-            if precios:
-                texto = precios[0].inner_text()
+            # Selector más profundo para el precio de Skyscanner
+            # Buscamos el texto que contiene "$" o "CLP" dentro de las tarjetas de resultados
+            price_elements = page.query_selector_all("span[class*='Price_mainPrice']")
+            if not price_elements:
+                price_elements = page.query_selector_all("div[class*='price-container'] span")
+
+            if price_elements:
+                texto = price_elements[0].inner_text()
                 print(f"Precio detectado en Skyscanner: {texto}")
                 browser.close()
                 return {"plataforma": "Skyscanner", "precio": texto, "url": url}
             
-            print("No se encontraron resultados en Skyscanner (posible bloqueo de bot).")
+            print("No se encontraron resultados en Skyscanner.")
         except Exception as e:
             print(f"Error en Skyscanner: {e}")
+        
+        browser.close()
+    return None
+
+def scrape_latam():
+    # URL directa de búsqueda en LATAM
+    url = f"https://www.latamairlines.com/cl/es/ofertas-vuelos?origin={ORIGEN}&outbound={FECHA_IDA}T12%3A00%3A00.000Z&destination={DESTINO}&inbound={FECHA_VUELTA}T12%3A00%3A00.000Z&adt=1&chd=0&inf=0&trip=RT&cabin=Economy&redemption=false"
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="es-CL"
+        )
+        page = context.new_page()
+        print(f"Buscando en LATAM: {url}")
+        
+        try:
+            page.goto(url, wait_until="networkidle", timeout=90000)
+            time.sleep(15)
+            
+            # LATAM usa selectores específicos para sus precios en la grilla
+            precio_elem = page.query_selector(".display-currencystyle__CurrencyAmount-sc__sc-19mloyt-2")
+            if not precio_elem:
+                precio_elem = page.query_selector("span[class*='CurrencyAmount']")
+
+            if precio_elem:
+                texto = precio_elem.inner_text()
+                print(f"Precio detectado en LATAM: {texto}")
+                browser.close()
+                return {"plataforma": "LATAM", "precio": texto, "url": url}
+        except Exception as e:
+            print(f"Error en LATAM: {e}")
+        
+        browser.close()
+    return None
+
+def scrape_sky():
+    # URL directa de búsqueda en SKY
+    url = f"https://www.skyairline.com/chile/flujo-compra/busqueda-vuelos?origin={ORIGEN}&destination={DESTINO}&departure={FECHA_IDA}&return={FECHA_VUELTA}&adults=1&children=0&infants=0"
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            locale="es-CL"
+        )
+        page = context.new_page()
+        print(f"Buscando en SKY: {url}")
+        
+        try:
+            page.goto(url, wait_until="networkidle", timeout=90000)
+            time.sleep(15)
+            
+            # Selector de precio en SKY (clases de precio final)
+            precio_elem = page.query_selector(".price-amount")
+            if not precio_elem:
+                precio_elem = page.query_selector("span[class*='amount']")
+
+            if precio_elem:
+                texto = precio_elem.inner_text()
+                print(f"Precio detectado en SKY: {texto}")
+                browser.close()
+                return {"plataforma": "SKY Airline", "precio": texto, "url": url}
+        except Exception as e:
+            print(f"Error en SKY: {e}")
         
         browser.close()
     return None
@@ -187,20 +257,35 @@ def monitor():
     if res_skyscanner:
         res_skyscanner['precio_usd'] = parse_price(res_skyscanner['precio'])
         resultados.append(res_skyscanner)
+        
+    # 4. LATAM
+    res_latam = scrape_latam()
+    if res_latam:
+        res_latam['precio_usd'] = parse_price(res_latam['precio'])
+        resultados.append(res_latam)
+        
+    # 5. SKY Airline
+    res_sky = scrape_sky()
+    if res_sky:
+        res_sky['precio_usd'] = parse_price(res_sky['precio'])
+        resultados.append(res_sky)
 
     if not resultados:
-        enviar_alerta("⚠️ No se pudieron obtener precios de ninguna plataforma en esta vuelta. Revisaré los bloqueos.")
+        enviar_alerta("⚠️ No se pudieron obtener precios de ninguna plataforma en esta vuelta.")
         return
 
-    # Encontrar el mejor resultado entre las plataformas exitosas
+    # Encontrar el mejor resultado
     mejor_opcion = min(resultados, key=lambda x: x['precio_usd'])
     
     print(f"Mejor opción encontrada: {mejor_opcion['plataforma']} a ~{mejor_opcion['precio_usd']:.2f} USD")
     
+    # Detalle de todas las plataformas para el log (opcional enviarlo por Telegram si quieres)
+    detalle = "\n".join([f"- {r['plataforma']}: {r['precio']}" for r in resultados])
+    
     if mejor_opcion['precio_usd'] <= META_PRECIO:
-        enviar_alerta(f"🔥 ¡OFERTA ENCONTRADA EN {mejor_opcion['plataforma'].upper()}! 🔥\n\nPrecio: {mejor_opcion['precio']} (~{mejor_opcion['precio_usd']:.2f} USD)\n\n¡Es el momento de comprar!\n\nLink: {mejor_opcion['url']}")
+        enviar_alerta(f"🔥 ¡OFERTA ENCONTRADA EN {mejor_opcion['plataforma'].upper()}! 🔥\n\nPrecio: {mejor_opcion['precio']} (~{mejor_opcion['precio_usd']:.2f} USD)\n\nLink: {mejor_opcion['url']}\n\nResumen:\n{detalle}")
     else:
-        enviar_alerta(f"📊 Actualización: La mejor opción hoy es en {mejor_opcion['plataforma']}\n\nPrecio: {mejor_opcion['precio']} (~{mejor_opcion['precio_usd']:.2f} USD).\n\nSigue por encima de nuestra meta de {META_PRECIO} USD. Seguiré monitoreando Google, Kayak y Skyscanner para ti. 🫡")
+        enviar_alerta(f"📊 La mejor opción es en {mejor_opcion['plataforma']}: {mejor_opcion['precio']} (~{mejor_opcion['precio_usd']:.2f} USD).\n\nSeguiré monitoreando las 5 plataformas por ti. 🫡\n\nPrecios actuales:\n{detalle}")
 
 if __name__ == "__main__":
     monitor()
