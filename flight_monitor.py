@@ -85,9 +85,11 @@ def monitor():
         print(f"[Google Flights] Precio parseado: ~{precio_usd:.2f} USD")
         
         if precio_usd <= META_PRECIO:
-            enviar_alerta(f"¡OFERTA ENCONTRADA!\nPlataforma: Google Flights\nPrecio: {res_google['precio']} (~{precio_usd:.2f} USD)\nLink: {res_google['url']}")
+            enviar_alerta(f"🔥 ¡OFERTA ENCONTRADA! 🔥\n\nPlataforma: Google Flights\nPrecio: {res_google['precio']} (~{precio_usd:.2f} USD)\n\n¡Es un excelente momento para comprar!\n\nLink: {res_google['url']}")
         else:
-            print(f"El precio ({precio_usd:.2f} USD) sigue por encima de la meta ({META_PRECIO} USD).")
+            enviar_alerta(f"📊 Actualización de Búsqueda\n\nEl precio más bajo encontrado es de {res_google['precio']} (~{precio_usd:.2f} USD).\n\nTodavía está por encima de nuestra meta de {META_PRECIO} USD. Seguiré buscando 3 veces al día para encontrar el mejor precio para ti. 🫡")
+    else:
+        print("No se pudieron obtener resultados en esta ejecución.")
 
 if __name__ == "__main__":
     monitor()
