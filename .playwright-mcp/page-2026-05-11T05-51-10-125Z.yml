@@ -1,0 +1,456 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - button "Main menu" [ref=e6] [cursor=pointer]:
+          - img [ref=e7]
+        - link "Google" [ref=e11] [cursor=pointer]:
+          - /url: /
+      - generic [ref=e13]:
+        - generic [ref=e15]:
+          - generic:
+            - button "Skip to main content" [ref=e16]:
+              - generic: Skip to main content
+            - button "Accessibility feedback" [ref=e19]:
+              - generic: Accessibility feedback
+          - navigation [ref=e23]:
+            - link "Travel" [ref=e26]:
+              - img [ref=e29]
+              - generic: Travel
+            - link "Explore" [ref=e35]:
+              - img [ref=e38]
+              - generic: Explore
+            - link "Flights" [ref=e43]:
+              - img [ref=e46]
+              - generic: Flights
+            - link "Hotels" [ref=e51]:
+              - img [ref=e54]
+              - generic: Hotels
+            - link "Vacation rentals" [ref=e62]:
+              - img [ref=e65]
+              - generic: Vacation rentals
+        - generic [ref=e79]:
+          - button "Change appearance" [ref=e81]:
+            - img
+          - tooltip [ref=e84]: Change appearance
+      - generic [ref=e86]:
+        - button "Google apps" [ref=e90] [cursor=pointer]:
+          - img [ref=e91]
+        - link "Sign in" [ref=e94] [cursor=pointer]:
+          - /url: https://accounts.google.com/ServiceLogin?service=searchandassistant&passive=1209600&continue=https://www.google.com/travel/flights?q%3DFlights%2Bto%2BCOR%2Bfrom%2BSCL%2Bon%2B2026-10-09%2Bthrough%2B2026-10-12&followup=https://www.google.com/travel/flights?q%3DFlights%2Bto%2BCOR%2Bfrom%2BSCL%2Bon%2B2026-10-09%2Bthrough%2B2026-10-12&ec=GAZAlQM
+  - generic [ref=e102]:
+    - generic [ref=e104]:
+      - generic [ref=e105]: Loading results
+      - progressbar [ref=e106]
+    - generic [ref=e111]:
+      - search [ref=e112]:
+        - heading "Flight search" [level=1] [ref=e113]
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - combobox "Change ticket type. Round trip" [ref=e120] [cursor=pointer]:
+              - generic:
+                - img
+              - generic:
+                - generic: Round trip
+              - generic:
+                - img
+            - button "1 passenger, change number of passengers." [ref=e126]:
+              - generic [ref=e129]:
+                - img [ref=e130]
+                - generic [ref=e132]: "1"
+              - img [ref=e133]
+            - combobox "Change seating class. Economy" [ref=e139] [cursor=pointer]:
+              - generic:
+                - generic: Economy
+              - generic:
+                - img
+          - generic [ref=e141]:
+            - generic [ref=e142]:
+              - generic [ref=e148]:
+                - combobox "Where from? Santiago SCL" [ref=e149]: Santiago
+                - generic [ref=e151]: Santiago SCL
+                - img [ref=e152]
+              - button "Swap origin and destination." [ref=e156] [cursor=pointer]:
+                - img [ref=e157]
+              - generic [ref=e164]:
+                - combobox "Where to? Córdoba COR" [ref=e165]: Córdoba
+                - generic [ref=e167]: Córdoba COR
+                - img [ref=e168]
+            - generic [ref=e179]:
+              - generic [ref=e181]:
+                - img [ref=e183]
+                - textbox "Departure" [ref=e186]: Fri, Oct 9
+                - button [ref=e189]:
+                  - img [ref=e192]
+                - button [ref=e196]:
+                  - img [ref=e199]
+              - generic [ref=e203]:
+                - textbox "Return" [ref=e204]: Mon, Oct 12
+                - button [ref=e207]:
+                  - img [ref=e210]
+                - button [ref=e214]:
+                  - img [ref=e217]
+          - heading "Filters" [level=2] [ref=e220]
+          - generic [ref=e223]:
+            - button "All filters" [ref=e226]:
+              - img [ref=e229]
+              - generic [ref=e231]: All filters
+            - generic [ref=e234]:
+              - button "Stops, Not selected" [ref=e237]:
+                - generic [ref=e241]:
+                  - generic [ref=e242]: Stops
+                  - img [ref=e243]
+              - button "Airlines, Not selected" [ref=e247]:
+                - generic [ref=e251]:
+                  - generic [ref=e252]: Airlines
+                  - img [ref=e253]
+              - button "Bags, Not selected" [ref=e257]:
+                - generic [ref=e261]:
+                  - generic [ref=e262]: Bags
+                  - img [ref=e263]
+              - button "Price, Not selected" [ref=e267]:
+                - generic [ref=e271]:
+                  - generic [ref=e272]: Price
+                  - img [ref=e273]
+              - button "Times, Not selected" [ref=e277]:
+                - generic [ref=e281]:
+                  - generic [ref=e282]: Times
+                  - img [ref=e283]
+              - button "Emissions, Not selected" [ref=e287]:
+                - generic [ref=e291]:
+                  - generic [ref=e292]: Emissions
+                  - img [ref=e293]
+              - button "Connecting airports, Not selected" [ref=e297]:
+                - generic [ref=e301]:
+                  - generic [ref=e302]: Connecting airports
+                  - img [ref=e303]
+              - button "Duration, Not selected" [ref=e307]:
+                - generic [ref=e311]:
+                  - generic [ref=e312]: Duration
+                  - img [ref=e313]
+      - main [ref=e315]:
+        - heading "Search results" [level=2] [ref=e316]
+        - alert [ref=e317]: 6 results returned.
+        - generic [ref=e319]:
+          - tablist [ref=e320]:
+            - tab "BestLearn more about ranking" [selected] [ref=e321] [cursor=pointer]:
+              - generic [ref=e322]:
+                - text: Best
+                - button "Learn more about ranking" [ref=e328]:
+                  - img [ref=e330]
+            - tab "Cheapest from Fetching results 324690 Chilean pesos Learn more about ranking" [ref=e332] [cursor=pointer]:
+              - generic [ref=e333]:
+                - text: Cheapest
+                - generic [ref=e335]:
+                  - generic [ref=e336]:
+                    - text: from
+                    - generic [ref=e337]:
+                      - generic [ref=e338]:
+                        - generic [ref=e339]: Fetching results
+                        - progressbar [ref=e340]:
+                          - img [ref=e342]
+                          - generic [ref=e346]:
+                            - img [ref=e348]
+                            - img [ref=e351]
+                            - img [ref=e354]
+                      - text: CLP 324,690
+                  - button "Learn more about ranking" [ref=e359]:
+                    - img [ref=e361]
+          - tabpanel "BestLearn more about ranking" [ref=e363]:
+            - generic [ref=e364]:
+              - heading "Top departing flights" [level=3] [ref=e365]
+              - generic [ref=e366]:
+                - generic [ref=e367]:
+                  - text: Ranked based on price and convenience
+                  - button "Learn more about ranking" [ref=e371] [cursor=pointer]:
+                    - img [ref=e373]
+                  - text: Prices include required taxes + fees for 1 adult.
+                  - generic [ref=e375]:
+                    - text: Optional charges and
+                    - button "bag fees" [ref=e376] [cursor=pointer]
+                    - text: may apply.
+                    - generic [ref=e377]:
+                      - button "Passenger assistance" [ref=e378] [cursor=pointer]
+                      - text: info.
+                - button "Sorted by top flights, Change sort order." [ref=e383]:
+                  - generic [ref=e386]: Sorted by top flights
+                  - img [ref=e387]
+              - list [ref=e389]:
+                - listitem [ref=e390]:
+                  - generic [ref=e391]:
+                    - 'link "From 324690 Chilean pesos round trip total. 1 stop flight with Aerolineas Argentinas. Leaves Arturo Merino Benitez International Airport at 8:50 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 7:00 AM on Saturday, October 10. Total duration 10 hr 10 min. Layover (1 of 1) is a 5 hr 35 min overnight layover at Aeroparque Internacional Jorge Newbery in Buenos Aires. Carbon emissions estimate: 209 kilograms. Select flight"'
+                    - generic [ref=e393] [cursor=pointer]:
+                      - generic [ref=e395]:
+                        - generic [ref=e397]:
+                          - generic "Leaves Arturo Merino Benitez International Airport at 8:50 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 7:00 AM on Saturday, October 10." [ref=e399]:
+                            - 'generic "Departure time: 8:50 PM." [ref=e402]': 8:50 PM
+                            - text: –
+                            - 'generic "Arrival time: 7:00 AM on Saturday, October 10." [ref=e405]':
+                              - 'generic "Arrival time: 7:00 AM on Saturday, October 10." [ref=e406]':
+                                - text: 7:00 AM
+                                - generic [ref=e407]: "+1"
+                          - generic [ref=e408]: Aerolineas Argentinas
+                        - generic [ref=e409]:
+                          - generic "Total duration 10 hr 10 min." [ref=e410]: 10 hr 10 min
+                          - generic [ref=e411]:
+                            - generic [ref=e414]: SCL
+                            - text: –
+                            - generic [ref=e417]: COR
+                        - generic [ref=e418]:
+                          - generic [ref=e419]:
+                            - generic "1 stop flight." [ref=e420]: 1 stop
+                            - img [ref=e425]
+                          - generic "Layover (1 of 1) is a 5 hr 35 min overnight layover at Aeroparque Internacional Jorge Newbery in Buenos Aires." [ref=e428]:
+                            - text: 5 hr 35 min
+                            - generic [ref=e430]: AEP
+                        - generic [ref=e434]: 209 kg CO2e
+                        - generic [ref=e435]:
+                          - generic [ref=e437]: CLP 324,690
+                          - generic [ref=e438]: round trip
+                      - text: · ··
+                    - button "Flight details. Leaves Arturo Merino Benitez International Airport at 8:50 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 7:00 AM on Saturday, October 10." [ref=e441]:
+                      - img [ref=e444]
+                - listitem [ref=e446]:
+                  - generic [ref=e447]:
+                    - 'link "From 327372 Chilean pesos round trip total.This price does not include overhead bin access. 1 stop flight with JetSMART. Operated by Jetsmart Airlines S.a.. Leaves Arturo Merino Benitez International Airport at 1:25 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 6:27 PM on Friday, October 9. Total duration 5 hr 2 min. Layover (1 of 1) is a 1 hr 30 min layover at Aeroparque Internacional Jorge Newbery in Buenos Aires. Carbon emissions estimate: 189 kilograms. Select flight"'
+                    - generic [ref=e449] [cursor=pointer]:
+                      - generic [ref=e451]:
+                        - generic [ref=e453]:
+                          - generic "Leaves Arturo Merino Benitez International Airport at 1:25 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 6:27 PM on Friday, October 9." [ref=e455]:
+                            - 'generic "Departure time: 1:25 PM." [ref=e458]': 1:25 PM
+                            - text: –
+                            - 'generic "Arrival time: 6:27 PM." [ref=e461]': 6:27 PM
+                          - generic [ref=e462]:
+                            - text: JetSMART
+                            - generic [ref=e463]: ·
+                            - text: Operated by Jetsmart Airlines S.a.
+                        - generic [ref=e464]:
+                          - generic "Total duration 5 hr 2 min." [ref=e465]: 5 hr 2 min
+                          - generic [ref=e466]:
+                            - generic [ref=e469]: SCL
+                            - text: –
+                            - generic [ref=e472]: COR
+                        - generic [ref=e473]:
+                          - generic "1 stop flight." [ref=e475]: 1 stop
+                          - generic "Layover (1 of 1) is a 1 hr 30 min layover at Aeroparque Internacional Jorge Newbery in Buenos Aires." [ref=e476]:
+                            - text: 1 hr 30 min
+                            - generic [ref=e478]: AEP
+                        - generic [ref=e482]: 189 kg CO2e
+                        - generic [ref=e483]:
+                          - generic [ref=e484]:
+                            - button "This price for this flight doesn't include overhead bin access. If you need a carry-on bag, use the Bags filter to update prices." [ref=e488]:
+                              - img [ref=e489]
+                            - generic [ref=e492]: CLP 327,372
+                          - generic [ref=e493]: round trip
+                      - text: · ·· ·
+                    - button "Flight details. Leaves Arturo Merino Benitez International Airport at 1:25 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 6:27 PM on Friday, October 9." [ref=e496]:
+                      - img [ref=e499]
+            - generic [ref=e505]:
+              - heading "Price insights" [level=3] [ref=e506]
+              - generic [ref=e507] [cursor=pointer]:
+                - heading "Prices are currently high" [level=4] [ref=e512]
+                - generic [ref=e514]: View price history
+                - button "View price history" [ref=e516]:
+                  - img [ref=e519]
+            - region "Find the best price" [ref=e521]:
+              - generic [ref=e524]:
+                - img [ref=e525]
+                - heading "Track prices" [level=2] [ref=e527]
+                - button "Learn more about tracked prices" [ref=e531] [cursor=pointer]:
+                  - link "Learn more about tracked prices" [ref=e532]:
+                    - img [ref=e533]
+                - generic [ref=e535]: Track prices from Santiago to Córdoba departing 2026-10-09 and returning 2026-10-12
+                - generic [ref=e536]:
+                  - generic [ref=e538] [cursor=pointer]: Oct 9 – 12
+                  - switch "Track prices from Santiago to Córdoba departing 2026-10-09 and returning 2026-10-12" [ref=e541] [cursor=pointer]:
+                    - generic [ref=e546]:
+                      - img [ref=e547]
+                      - img [ref=e549]
+                - generic [ref=e552]: Track prices from Santiago to Córdoba - Any dates
+                - generic [ref=e554]:
+                  - generic [ref=e555] [cursor=pointer]: Any dates
+                  - switch "Track prices from Santiago to Córdoba - Any dates" [ref=e558] [cursor=pointer]:
+                    - generic [ref=e563]:
+                      - img [ref=e564]
+                      - img [ref=e566]
+              - generic [ref=e571]:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic [ref=e576]:
+                        - generic [ref=e577]:
+                          - text: Travel Oct 10 – 13 for CLP 207,576
+                          - button "Change dates" [ref=e579] [cursor=pointer]
+                        - button "Close" [ref=e580] [cursor=pointer]:
+                          - img [ref=e581]
+                      - alert [ref=e583]: Expanded
+                - button "Date grid" [ref=e585]:
+                  - img [ref=e587]
+                  - generic [ref=e594]: Date grid
+                - button "Price graph" [ref=e596]:
+                  - img [ref=e598]
+                  - generic [ref=e608]: Price graph
+            - generic [ref=e609]:
+              - heading "Other departing flights" [level=3] [ref=e610]
+              - list [ref=e611]:
+                - listitem [ref=e612]:
+                  - generic [ref=e613]:
+                    - 'link "From 360450 Chilean pesos round trip total. 1 stop flight with Aerolineas Argentinas. Leaves Arturo Merino Benitez International Airport at 9:15 AM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 5:25 PM on Friday, October 9. Total duration 8 hr 10 min. Layover (1 of 1) is a 3 hr 35 min layover at Aeroparque Internacional Jorge Newbery in Buenos Aires. Carbon emissions estimate: 201 kilograms. Select flight"'
+                    - generic [ref=e615] [cursor=pointer]:
+                      - generic [ref=e617]:
+                        - generic [ref=e619]:
+                          - generic "Leaves Arturo Merino Benitez International Airport at 9:15 AM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 5:25 PM on Friday, October 9." [ref=e621]:
+                            - 'generic "Departure time: 9:15 AM." [ref=e624]': 9:15 AM
+                            - text: –
+                            - 'generic "Arrival time: 5:25 PM." [ref=e627]': 5:25 PM
+                          - generic [ref=e628]: Aerolineas Argentinas
+                        - generic [ref=e629]:
+                          - generic "Total duration 8 hr 10 min." [ref=e630]: 8 hr 10 min
+                          - generic [ref=e631]:
+                            - generic [ref=e634]: SCL
+                            - text: –
+                            - generic [ref=e637]: COR
+                        - generic [ref=e638]:
+                          - generic "1 stop flight." [ref=e640]: 1 stop
+                          - generic "Layover (1 of 1) is a 3 hr 35 min layover at Aeroparque Internacional Jorge Newbery in Buenos Aires." [ref=e641]:
+                            - text: 3 hr 35 min
+                            - generic [ref=e643]: AEP
+                        - generic [ref=e647]: 201 kg CO2e
+                        - generic [ref=e648]:
+                          - generic [ref=e650]: CLP 360,450
+                          - generic [ref=e651]: round trip
+                      - text: · ··
+                    - button "Flight details. Leaves Arturo Merino Benitez International Airport at 9:15 AM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 5:25 PM on Friday, October 9." [ref=e654]:
+                      - img [ref=e657]
+                - listitem [ref=e659]:
+                  - generic [ref=e660]:
+                    - 'link "From 392439 Chilean pesos round trip total. 1 stop flight with LATAM and Aerolineas Argentinas. Operated by Latam Airlines Group. Leaves Arturo Merino Benitez International Airport at 6:27 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 7:00 AM on Saturday, October 10. Total duration 12 hr 33 min. Layover (1 of 1) is a 8 hr overnight layover at Aeroparque Internacional Jorge Newbery in Buenos Aires. Carbon emissions estimate: 190 kilograms. Select flight"'
+                    - generic [ref=e662] [cursor=pointer]:
+                      - generic [ref=e664]:
+                        - generic [ref=e666]:
+                          - generic "Leaves Arturo Merino Benitez International Airport at 6:27 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 7:00 AM on Saturday, October 10." [ref=e668]:
+                            - 'generic "Departure time: 6:27 PM." [ref=e671]': 6:27 PM
+                            - text: –
+                            - 'generic "Arrival time: 7:00 AM on Saturday, October 10." [ref=e674]':
+                              - 'generic "Arrival time: 7:00 AM on Saturday, October 10." [ref=e675]':
+                                - text: 7:00 AM
+                                - generic [ref=e676]: "+1"
+                          - generic [ref=e677]:
+                            - text: LATAM, Aerolineas Argentinas
+                            - generic [ref=e678]: ·
+                            - text: Operated by Latam Airlines Group
+                        - generic [ref=e679]:
+                          - generic "Total duration 12 hr 33 min." [ref=e680]: 12 hr 33 min
+                          - generic [ref=e681]:
+                            - generic [ref=e684]: SCL
+                            - text: –
+                            - generic [ref=e687]: COR
+                        - generic [ref=e688]:
+                          - generic [ref=e689]:
+                            - generic "1 stop flight." [ref=e690]: 1 stop
+                            - img [ref=e695]
+                          - generic "Layover (1 of 1) is a 8 hr overnight layover at Aeroparque Internacional Jorge Newbery in Buenos Aires." [ref=e698]:
+                            - text: 8 hr
+                            - generic [ref=e700]: AEP
+                        - generic [ref=e704]: 190 kg CO2e
+                        - generic [ref=e705]:
+                          - generic [ref=e707]: CLP 392,439
+                          - generic [ref=e708]: round trip
+                      - text: · ·· ·
+                    - button "Flight details. Leaves Arturo Merino Benitez International Airport at 6:27 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 7:00 AM on Saturday, October 10." [ref=e711]:
+                      - img [ref=e714]
+                - listitem [ref=e716]:
+                  - generic [ref=e717]:
+                    - 'link "From 419095 Chilean pesos round trip total. Nonstop flight with LATAM. Operated by Latam Airlines Group. Leaves Arturo Merino Benitez International Airport at 5:50 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 8:23 PM on Friday, October 9. Total duration 2 hr 33 min. Carbon emissions estimate: 77 kilograms. Select flight"'
+                    - generic [ref=e719] [cursor=pointer]:
+                      - generic [ref=e721]:
+                        - generic [ref=e723]:
+                          - generic "Leaves Arturo Merino Benitez International Airport at 5:50 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 8:23 PM on Friday, October 9." [ref=e725]:
+                            - 'generic "Departure time: 5:50 PM." [ref=e728]': 5:50 PM
+                            - text: –
+                            - 'generic "Arrival time: 8:23 PM." [ref=e731]': 8:23 PM
+                          - generic [ref=e732]:
+                            - text: LATAM
+                            - generic [ref=e733]: ·
+                            - text: Operated by Latam Airlines Group
+                        - generic [ref=e734]:
+                          - generic "Total duration 2 hr 33 min." [ref=e735]: 2 hr 33 min
+                          - generic [ref=e736]:
+                            - generic [ref=e739]: SCL
+                            - text: –
+                            - generic [ref=e742]: COR
+                        - generic "Nonstop flight." [ref=e745]: Nonstop
+                        - generic [ref=e749]: 77 kg CO2e
+                        - generic [ref=e750]:
+                          - generic [ref=e752]: CLP 419,095
+                          - generic [ref=e753]: round trip
+                      - text: · ·· ·
+                    - button "Flight details. Leaves Arturo Merino Benitez International Airport at 5:50 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 8:23 PM on Friday, October 9." [ref=e756]:
+                      - img [ref=e759]
+                - listitem [ref=e761]:
+                  - generic [ref=e762]:
+                    - 'link "From 539250 Chilean pesos round trip total. 1 stop flight with Aerolineas Argentinas. Leaves Arturo Merino Benitez International Airport at 2:35 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 10:00 PM on Friday, October 9. Total duration 7 hr 25 min. Layover (1 of 1) is a 2 hr 50 min layover at Aeroparque Internacional Jorge Newbery in Buenos Aires. Carbon emissions estimate: 209 kilograms. Select flight"'
+                    - generic [ref=e764] [cursor=pointer]:
+                      - generic [ref=e766]:
+                        - generic [ref=e768]:
+                          - generic "Leaves Arturo Merino Benitez International Airport at 2:35 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 10:00 PM on Friday, October 9." [ref=e770]:
+                            - 'generic "Departure time: 2:35 PM." [ref=e773]': 2:35 PM
+                            - text: –
+                            - 'generic "Arrival time: 10:00 PM." [ref=e776]': 10:00 PM
+                          - generic [ref=e777]: Aerolineas Argentinas
+                        - generic [ref=e778]:
+                          - generic "Total duration 7 hr 25 min." [ref=e779]: 7 hr 25 min
+                          - generic [ref=e780]:
+                            - generic [ref=e783]: SCL
+                            - text: –
+                            - generic [ref=e786]: COR
+                        - generic [ref=e787]:
+                          - generic "1 stop flight." [ref=e789]: 1 stop
+                          - generic "Layover (1 of 1) is a 2 hr 50 min layover at Aeroparque Internacional Jorge Newbery in Buenos Aires." [ref=e790]:
+                            - text: 2 hr 50 min
+                            - generic [ref=e792]: AEP
+                        - generic [ref=e796]: 209 kg CO2e
+                        - generic [ref=e797]:
+                          - generic [ref=e799]: CLP 539,250
+                          - generic [ref=e800]: round trip
+                      - text: · ··
+                    - button "Flight details. Leaves Arturo Merino Benitez International Airport at 2:35 PM on Friday, October 9 and arrives at Ingeniero Aeronáutico Ambrosio L.V. Taravella International Airport at 10:00 PM on Friday, October 9." [ref=e803]:
+                      - img [ref=e806]
+                - listitem [ref=e808]:
+                  - generic [ref=e809] [cursor=pointer]:
+                    - button "View more flights" [ref=e812]:
+                      - img
+                    - generic [ref=e815]: View more flights
+          - text: · ·· · · ·· · · ·· · · ·· · · · ·· · · ··
+      - contentinfo [ref=e818]:
+        - generic [ref=e820]:
+          - button "Language·English (United States)" [ref=e821]:
+            - img [ref=e824]
+            - generic [ref=e826]: Language·English (United States)
+          - button "Location·Chile" [ref=e827]:
+            - img [ref=e830]
+            - generic [ref=e833]: Location·Chile
+          - button "Currency CLP" [ref=e834]:
+            - img [ref=e837]
+            - generic [ref=e847]: Currency·CLP
+        - generic [ref=e848]:
+          - link "About Google Travel" [ref=e849] [cursor=pointer]:
+            - /url: https://about.google/?hl=en-US
+            - text: About
+          - link "Privacy" [ref=e850] [cursor=pointer]:
+            - /url: https://policies.google.com/privacy?hl=en-US
+          - link "Terms" [ref=e851] [cursor=pointer]:
+            - /url: https://policies.google.com/terms?hl=en-US
+          - link "Join user studies" [ref=e852] [cursor=pointer]:
+            - /url: https://google.qualtrics.com/jfe/form/SV_3NMIMtX0F2zkakR?reserved%3D1%26utm_source%3DFooter%2520link%26utm_medium%3Down_web%26%20utm_campaign%3DQ2%26productTag%3D0%26campaignDate%3DApril2020%26referral_code%3DUXbJ377133&Q_Language=en-US
+          - link "Feedback" [ref=e853] [cursor=pointer]:
+            - /url: ./#0
+          - link "Help Center" [ref=e854] [cursor=pointer]:
+            - /url: https://support.google.com/travel/?hl=en-US#topic=2475360
+        - generic [ref=e855]:
+          - paragraph [ref=e856]:
+            - text: Displayed currencies may differ from the currencies used to purchase flights.
+            - link "Learn more about currencies" [ref=e857] [cursor=pointer]:
+              - /url: https://www.google.com/googlefinance/disclaimer?hl=en-US&gl=CL
+              - text: Learn more
+          - paragraph [ref=e858]: Prices are final prices and include all taxes and fees, including payment fees for the cheapest common payment method (which may differ depending on the provider). Additional charges may apply for other types of payment, luggage, meals, WLAN or other additional services. Prices, availability and travel details are provided based on the latest information received from our partners. This information is reflected in the results within a period of less than 24 hours. Additional conditions may also be applied by our partners. You should then check prices and conditions with the services providers before booking.

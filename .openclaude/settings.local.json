@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__notebooklm__setup_auth",
+      "mcp__notebooklm__get_health",
+      "mcp__markitdown__convert_to_markdown"
+    ]
+  }
+}

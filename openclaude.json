@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "markitdown": {
+      "command": "uv",
+      "args": ["run", "--with", "markitdown", "markitdown-mcp"]
+    },
+    "notebooklm": {
+      "command": "npx",
+      "args": ["-y", "@smithery/notebooklm-mcp"]
+    }
+  }
+}

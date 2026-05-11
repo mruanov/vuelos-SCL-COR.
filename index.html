@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI Insight | Dashboard de Inteligencia de Negocios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Fira+Sans:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0EA5E9',
+                        secondary: '#38BDF8',
+                        cta: '#F97316',
+                        background: '#F0F9FF',
+                        dark: '#0C4A6E',
+                    },
+                    fontFamily: {
+                        sans: ['Fira Sans', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .massive-text {
+            font-size: clamp(3rem, 10vw, 12rem);
+            line-height: 0.9;
+            letter-spacing: -0.05em;
+        }
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease-out;
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-background text-dark font-sans selection:bg-cta selection:text-white">
+
+    <!-- Progress Indicator -->
+    <div id="progress-bar" class="fixed top-0 left-0 h-1.5 bg-cta z-50 transition-all duration-150" style="width: 0%"></div>
+
+    <!-- Simple Navigation -->
+    <nav class="fixed top-0 w-full z-40 px-6 py-8 md:px-12 flex justify-between items-center mix-blend-multiply">
+        <div class="flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-8 h-8 text-primary"></i>
+            <span class="font-bold text-2xl tracking-tighter">BI_INSIGHT</span>
+        </div>
+        <a href="#cta" class="bg-cta text-white px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform cursor-pointer shadow-lg shadow-cta/20">
+            EMPEZAR
+        </a>
+    </nav>
+
+    <main>
+        <!-- 1. Intro Hook -->
+        <section class="min-h-screen flex flex-col justify-center px-6 md:px-12 pt-20">
+            <h1 class="massive-text font-black uppercase text-primary">
+                Data<br><span class="text-dark">Driven</span>
+            </h1>
+            <p class="mt-8 text-2xl md:text-3xl max-w-2xl font-light leading-relaxed">
+                Transforma el ruido en claridad. Decisiones basadas en evidencia, no en intuición.
+            </p>
+            <div class="mt-12">
+                <i data-lucide="chevron-down" class="w-12 h-12 animate-bounce text-primary/40"></i>
+            </div>
+        </section>
+
+        <!-- 2. Chapter 1 (Problem) -->
+        <section class="min-h-screen flex flex-col justify-center px-6 md:px-12 bg-dark text-white py-32">
+            <div class="reveal">
+                <span class="font-mono text-primary uppercase tracking-widest text-sm">Problema</span>
+                <h2 class="text-6xl md:text-8xl font-black mt-4 leading-none">LA DATA ES<br>INFINITA.</h2>
+                <p class="mt-12 text-2xl md:text-4xl max-w-3xl opacity-60 leading-tight">
+                    El 90% de los datos generados por tu empresa se pierden en el vacío. No tener visibilidad es volar a ciegas.
+                </p>
+            </div>
+            
+            <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-12 reveal">
+                <div class="border-l-2 border-primary/30 pl-6 py-4">
+                    <i data-lucide="cloud-off" class="w-10 h-10 mb-4 text-primary"></i>
+                    <h3 class="text-xl font-bold uppercase mb-2">Datos Silenciados</h3>
+                    <p class="opacity-50">Información atrapada en silos inaccesibles.</p>
+                </div>
+                <div class="border-l-2 border-primary/30 pl-6 py-4">
+                    <i data-lucide="clock" class="w-10 h-10 mb-4 text-primary"></i>
+                    <h3 class="text-xl font-bold uppercase mb-2">Reportes Lentos</h3>
+                    <p class="opacity-50">Esperar semanas por una respuesta que necesitas hoy.</p>
+                </div>
+                <div class="border-l-2 border-primary/30 pl-6 py-4">
+                    <i data-lucide="alert-triangle" class="w-10 h-10 mb-4 text-primary"></i>
+                    <h3 class="text-xl font-bold uppercase mb-2">Error Humano</h3>
+                    <p class="opacity-50">Hojas de cálculo infinitas propensas a fallos.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Chapter 2 (Journey) -->
+        <section class="min-h-screen flex flex-col justify-center px-6 md:px-12 py-32">
+            <div class="reveal">
+                <span class="font-mono text-primary uppercase tracking-widest text-sm">El Viaje</span>
+                <h2 class="text-6xl md:text-8xl font-black mt-4 leading-none">DEL CAOS AL<br>ORDEN.</h2>
+                <div class="mt-20 relative">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-20">
+                        <p class="text-xl md:text-2xl leading-relaxed">
+                            Nuestra plataforma integra, limpia y procesa millones de puntos de datos en milisegundos. Creamos una narrativa coherente donde antes solo había confusión.
+                        </p>
+                        <div class="space-y-6">
+                            <div class="bg-white p-6 rounded-2xl shadow-xl border border-primary/10 flex items-center gap-6">
+                                <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                                    <i data-lucide="database"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold">CONEXIÓN TOTAL</h4>
+                                    <p class="text-sm opacity-60">+200 fuentes de datos integradas.</p>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-2xl shadow-xl border border-primary/10 flex items-center gap-6">
+                                <div class="w-16 h-16 bg-cta/10 rounded-full flex items-center justify-center text-cta">
+                                    <i data-lucide="zap"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold">TIEMPO REAL</h4>
+                                    <p class="text-sm opacity-60">Latencia cero en tus visualizaciones.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Chapter 3 (Solution) -->
+        <section class="min-h-screen bg-primary/5 py-32 px-6 md:px-12 overflow-hidden">
+            <div class="reveal text-center mb-20">
+                <span class="font-mono text-primary uppercase tracking-widest text-sm">La Solución</span>
+                <h2 class="text-6xl md:text-8xl font-black mt-4 leading-none tracking-tighter">EL DASHBOARD.</h2>
+            </div>
+
+            <!-- Mockup Dashboard -->
+            <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl border border-dark/5 overflow-hidden reveal">
+                <div class="bg-dark/5 border-b border-dark/10 p-4 flex items-center gap-2">
+                    <div class="flex gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                        <div class="w-3 h-3 rounded-full bg-amber-400"></div>
+                        <div class="w-3 h-3 rounded-full bg-emerald-400"></div>
+                    </div>
+                    <div class="bg-white px-4 py-1 rounded-md text-[10px] font-mono opacity-50 ml-4">https://app.bi-insight.com/dashboard</div>
+                </div>
+                <div class="p-8 md:p-12 bg-white grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <!-- Sidebar Mock -->
+                    <div class="hidden md:block space-y-4">
+                        <div class="h-8 bg-primary/20 rounded-lg w-full"></div>
+                        <div class="h-8 bg-dark/5 rounded-lg w-3/4"></div>
+                        <div class="h-8 bg-dark/5 rounded-lg w-5/6"></div>
+                        <div class="h-8 bg-dark/5 rounded-lg w-2/3"></div>
+                    </div>
+                    <!-- Main Content Mock -->
+                    <div class="md:col-span-3 space-y-8">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="h-24 bg-primary/5 border border-primary/10 rounded-xl p-4">
+                                <div class="h-2 bg-primary/20 rounded w-1/2 mb-2"></div>
+                                <div class="h-6 bg-primary/40 rounded w-3/4"></div>
+                            </div>
+                            <div class="h-24 bg-cta/5 border border-cta/10 rounded-xl p-4">
+                                <div class="h-2 bg-cta/20 rounded w-1/2 mb-2"></div>
+                                <div class="h-6 bg-cta/40 rounded w-3/4"></div>
+                            </div>
+                            <div class="h-24 bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                                <div class="h-2 bg-emerald-200 rounded w-1/2 mb-2"></div>
+                                <div class="h-6 bg-emerald-300 rounded w-3/4"></div>
+                            </div>
+                        </div>
+                        <div class="h-64 bg-dark/5 rounded-2xl flex items-end p-8 gap-4">
+                            <div class="flex-1 bg-primary/40 rounded-t-lg transition-all hover:bg-primary/60" style="height: 40%"></div>
+                            <div class="flex-1 bg-primary/40 rounded-t-lg transition-all hover:bg-primary/60" style="height: 70%"></div>
+                            <div class="flex-1 bg-primary/40 rounded-t-lg transition-all hover:bg-primary/60" style="height: 55%"></div>
+                            <div class="flex-1 bg-primary/40 rounded-t-lg transition-all hover:bg-primary/60" style="height: 90%"></div>
+                            <div class="flex-1 bg-primary/40 rounded-t-lg transition-all hover:bg-primary/60" style="height: 45%"></div>
+                            <div class="flex-1 bg-primary/40 rounded-t-lg transition-all hover:bg-primary/60" style="height: 75%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Climax CTA -->
+        <section id="cta" class="min-h-screen flex flex-col justify-center items-center text-center px-6 md:px-12 py-32 bg-cta text-white">
+            <div class="reveal">
+                <h2 class="text-7xl md:text-9xl font-black leading-none uppercase tracking-tighter mb-12">
+                    DOMINA TU<br>DESTINO.
+                </h2>
+                <p class="text-2xl md:text-3xl max-w-2xl mx-auto mb-16 opacity-90 font-light">
+                    Únete a más de 500 empresas que ya están tomando decisiones inteligentes.
+                </p>
+                <div class="flex flex-col md:flex-row gap-6 justify-center">
+                    <button class="bg-white text-cta px-12 py-5 rounded-full font-black text-xl hover:scale-105 transition-all shadow-2xl cursor-pointer">
+                        PROBAR GRATIS
+                    </button>
+                    <button class="bg-transparent border-2 border-white/50 text-white px-12 py-5 rounded-full font-black text-xl hover:bg-white/10 transition-all cursor-pointer">
+                        VER DEMO
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white/40 py-20 px-6 md:px-12 border-t border-white/5">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+            <div class="flex items-center gap-2 grayscale brightness-200 opacity-50">
+                <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+                <span class="font-bold text-xl tracking-tighter">BI_INSIGHT</span>
+            </div>
+            <div class="flex gap-12 font-mono text-sm uppercase tracking-widest">
+                <a href="#" class="hover:text-primary transition-colors cursor-pointer">Seguridad</a>
+                <a href="#" class="hover:text-primary transition-colors cursor-pointer">API</a>
+                <a href="#" class="hover:text-primary transition-colors cursor-pointer">Privacidad</a>
+            </div>
+            <p class="text-sm">© 2026 BI_INSIGHT INC. TODO EL PODER A LA DATA.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Reveal on scroll
+        const reveals = document.querySelectorAll('.reveal');
+        const revealOnScroll = () => {
+            reveals.forEach(reveal => {
+                const windowHeight = window.innerHeight;
+                const elementTop = reveal.getBoundingClientRect().top;
+                const elementVisible = 150;
+                if (elementTop < windowHeight - elementVisible) {
+                    reveal.classList.add('active');
+                }
+            });
+        };
+        window.addEventListener('scroll', revealOnScroll);
+        revealOnScroll(); // Trigger initial
+
+        // Progress bar logic
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById("progress-bar").style.width = scrolled + "%";
+        });
+    </script>
+</body>
+</html>
