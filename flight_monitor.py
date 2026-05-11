@@ -96,20 +96,103 @@ def parse_price(text):
         return val
     return float('inf')
 
+def scrape_kayak():
+    url = f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a"
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="es-CL"
+        )
+        page = context.new_page()
+        print(f"Buscando en Kayak: {url}")
+        
+        try:
+            page.goto(url, wait_until="networkidle", timeout=60000)
+            time.sleep(10)
+            
+            # Selector de precio en Kayak (generalmente en el primer resultado)
+            # Kayak usa a menudo selectors como .f8F1-price o .price-text
+            page.wait_for_selector(".f8F1-price", timeout=30000)
+            precio_elem = page.query_selector(".f8F1-price")
+            
+            if precio_elem:
+                texto = precio_elem.inner_text()
+                print(f"Precio detectado en Kayak: {texto}")
+                browser.close()
+                return {"plataforma": "Kayak", "precio": texto, "url": url}
+        except Exception as e:
+            print(f"Error en Kayak: {e}")
+        
+        browser.close()
+    return None
+
+def scrape_skyscanner():
+    # Skyscanner es muy restrictivo con bots, usaremos una espera larga y UA real
+    url = f"https://www.skyscanner.cl/transport/vuelos/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}/?adultsv2=1&sortby=price"
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="es-CL"
+        )
+        page = context.new_page()
+        print(f"Buscando en Skyscanner: {url}")
+        
+        try:
+            page.goto(url, wait_until="networkidle", timeout=60000)
+            time.sleep(15)
+            
+            # Intentar encontrar el precio en el primer resultado
+            # Skyscanner usa clases dinámicas, buscamos por estructura de precio
+            precios = page.query_selector_all("span[class*='Price_mainPrice']")
+            if precios:
+                texto = precios[0].inner_text()
+                print(f"Precio detectado en Skyscanner: {texto}")
+                browser.close()
+                return {"plataforma": "Skyscanner", "precio": texto, "url": url}
+        except Exception as e:
+            print(f"Error en Skyscanner: {e}")
+        
+        browser.close()
+    return None
+
 def monitor():
     resultados = []
     
+    # 1. Google Flights
     res_google = scrape_google_flights()
     if res_google:
-        precio_usd = parse_price(res_google['precio'])
-        print(f"[Google Flights] Precio parseado: ~{precio_usd:.2f} USD")
+        res_google['precio_usd'] = parse_price(res_google['precio'])
+        resultados.append(res_google)
+    
+    # 2. Kayak
+    res_kayak = scrape_kayak()
+    if res_kayak:
+        res_kayak['precio_usd'] = parse_price(res_kayak['precio'])
+        resultados.append(res_kayak)
         
-        if precio_usd <= META_PRECIO:
-            enviar_alerta(f"🔥 ¡OFERTA ENCONTRADA! 🔥\n\nPlataforma: Google Flights\nPrecio: {res_google['precio']} (~{precio_usd:.2f} USD)\n\n¡Es un excelente momento para comprar!\n\nLink: {res_google['url']}")
-        else:
-            enviar_alerta(f"📊 Actualización de Búsqueda\n\nEl precio más bajo encontrado es de {res_google['precio']} (~{precio_usd:.2f} USD).\n\nTodavía está por encima de nuestra meta de {META_PRECIO} USD. Seguiré buscando 3 veces al día para encontrar el mejor precio para ti. 🫡")
+    # 3. Skyscanner
+    res_skyscanner = scrape_skyscanner()
+    if res_skyscanner:
+        res_skyscanner['precio_usd'] = parse_price(res_skyscanner['precio'])
+        resultados.append(res_skyscanner)
+
+    if not resultados:
+        enviar_alerta("⚠️ No se pudieron obtener precios de ninguna plataforma en esta vuelta. Revisaré los bloqueos.")
+        return
+
+    # Encontrar el mejor resultado entre las plataformas exitosas
+    mejor_opcion = min(resultados, key=lambda x: x['precio_usd'])
+    
+    print(f"Mejor opción encontrada: {mejor_opcion['plataforma']} a ~{mejor_opcion['precio_usd']:.2f} USD")
+    
+    if mejor_opcion['precio_usd'] <= META_PRECIO:
+        enviar_alerta(f"🔥 ¡OFERTA ENCONTRADA EN {mejor_opcion['plataforma'].upper()}! 🔥\n\nPrecio: {mejor_opcion['precio']} (~{mejor_opcion['precio_usd']:.2f} USD)\n\n¡Es el momento de comprar!\n\nLink: {mejor_opcion['url']}")
     else:
-        print("No se pudieron obtener resultados en esta ejecución.")
+        enviar_alerta(f"📊 Actualización: La mejor opción hoy es en {mejor_opcion['plataforma']}\n\nPrecio: {mejor_opcion['precio']} (~{mejor_opcion['precio_usd']:.2f} USD).\n\nSigue por encima de nuestra meta de {META_PRECIO} USD. Seguiré monitoreando Google, Kayak y Skyscanner para ti. 🫡")
 
 if __name__ == "__main__":
     monitor()
