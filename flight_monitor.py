@@ -25,38 +25,37 @@ def enviar_alerta(mensaje):
     requests.post(url, json=payload)
 
 def scrape_google_flights():
+    # URL más directa con fechas ISO
+    url = f"https://www.google.com/travel/flights/search?tfs=CBwQAhoeEgoyMDI2LTEwLTA5agwIAhIIL20vMGYyYnlyHhIKMjAyNi0xMC0xMmoMCBIIL20vMGYyYnlyIAEaA0NDTEABSAFQApgBAg"
+    # Ajustamos a la URL de tu búsqueda específica SCL-COR
     url = f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}"
     
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
+        page = context.new_page()
         print(f"Buscando en Google Flights: {url}")
-        page.goto(url)
+        page.goto(url, wait_until="networkidle")
         
-        # Esperar a que carguen los resultados
         try:
-            # Esperar a que aparezca al menos un resultado de vuelo
-            page.wait_for_selector("li", timeout=30000) 
-            time.sleep(5) 
+            # Esperar por el contenedor de precios más común en la nueva interfaz
+            page.wait_for_selector(".MJ7yc", timeout=30000) 
+            time.sleep(3)
             
-            # Tomar screenshot para debug
-            page.screenshot(path="debug_flights.png")
-            print("Screenshot guardado como debug_flights.png")
-            
-            # Buscar el primer precio dentro de los resultados
-            precios = page.query_selector_all(".YMlS1e")
+            # Intentar capturar el precio de la primera tarjeta de "Mejor vuelo"
+            precios = page.query_selector_all(".JMc5Xc") # Selector de precio en la lista
             if not precios:
-                precios = page.query_selector_all("[aria-label*='Chilean pesos']")
+                precios = page.query_selector_all("span[role='text']") # Respaldo
             
-            if precios:
-                texto_precio = precios[0].inner_text()
-                print(f"Precio detectado en Google Flights: {texto_precio}")
-                return {"plataforma": "Google Flights", "precio": texto_precio, "url": url}
-            else:
-                print("No se encontraron elementos de precio.")
+            for p_elem in precios:
+                texto = p_elem.inner_text()
+                if "$" in texto or "CLP" in texto or "USD" in texto:
+                    print(f"Precio detectado: {texto}")
+                    return {"plataforma": "Google Flights", "precio": texto, "url": url}
+            
+            print("No se encontró un formato de precio válido.")
         except Exception as e:
-            page.screenshot(path="error_flights.png")
-            print(f"Error en Google Flights: {e}. Screenshot de error guardado.")
+            print(f"Error en Google Flights: {e}")
         
         browser.close()
     return None
