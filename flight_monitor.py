@@ -15,14 +15,23 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def enviar_alerta(mensaje):
+    print(f"Intentando enviar alerta a Telegram...")
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("⚠️ No hay credenciales de Telegram configuradas.")
-        print(f"ALERTA: {mensaje}")
+        print("⚠️ ERROR: No hay credenciales de Telegram configuradas en las variables de entorno.")
+        print(f"Contenido del mensaje que no se envió: {mensaje}")
         return
     
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": f"✈️ ¡ALERTA DE VUELO! ✈️\n\n{mensaje}"}
-    requests.post(url, json=payload)
+    
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code == 200:
+            print("✅ Mensaje enviado exitosamente a Telegram.")
+        else:
+            print(f"❌ Error de Telegram (Status {response.status_code}): {response.text}")
+    except Exception as e:
+        print(f"❌ Error de red al contactar a Telegram: {e}")
 
 def scrape_google_flights():
     url = f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}"
