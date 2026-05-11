@@ -109,19 +109,23 @@ def scrape_kayak():
         print(f"Buscando en Kayak: {url}")
         
         try:
-            page.goto(url, wait_until="networkidle", timeout=60000)
-            time.sleep(10)
+            # Kayak puede ser lento, esperamos a que cargue el contenido principal
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            time.sleep(15)
             
-            # Selector de precio en Kayak (generalmente en el primer resultado)
-            # Kayak usa a menudo selectors como .f8F1-price o .price-text
-            page.wait_for_selector(".f8F1-price", timeout=30000)
-            precio_elem = page.query_selector(".f8F1-price")
+            # Intentar varios selectores de precio comunes en Kayak
+            kayak_selectors = [".f8F1-price", ".price-text", "div[class*='price-text']", ".O3uT-price-text"]
             
-            if precio_elem:
-                texto = precio_elem.inner_text()
-                print(f"Precio detectado en Kayak: {texto}")
-                browser.close()
-                return {"plataforma": "Kayak", "precio": texto, "url": url}
+            for selector in kayak_selectors:
+                precio_elem = page.query_selector(selector)
+                if precio_elem:
+                    texto = precio_elem.inner_text()
+                    if "$" in texto or "CLP" in texto:
+                        print(f"Precio detectado en Kayak con {selector}: {texto}")
+                        browser.close()
+                        return {"plataforma": "Kayak", "precio": texto, "url": url}
+            
+            print("No se encontró el precio en Kayak tras varios intentos.")
         except Exception as e:
             print(f"Error en Kayak: {e}")
         
@@ -129,7 +133,6 @@ def scrape_kayak():
     return None
 
 def scrape_skyscanner():
-    # Skyscanner es muy restrictivo con bots, usaremos una espera larga y UA real
     url = f"https://www.skyscanner.cl/transport/vuelos/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}/?adultsv2=1&sortby=price"
     
     with sync_playwright() as p:
@@ -142,17 +145,22 @@ def scrape_skyscanner():
         print(f"Buscando en Skyscanner: {url}")
         
         try:
-            page.goto(url, wait_until="networkidle", timeout=60000)
-            time.sleep(15)
+            # Skyscanner a veces se queda colgado esperando 'networkidle', usamos 'commit' o 'domcontentloaded'
+            page.goto(url, wait_until="domcontentloaded", timeout=80000)
+            time.sleep(20) # Skyscanner necesita mucho tiempo para cargar resultados
             
-            # Intentar encontrar el precio en el primer resultado
-            # Skyscanner usa clases dinámicas, buscamos por estructura de precio
+            # Intentar encontrar el precio por clase o texto
             precios = page.query_selector_all("span[class*='Price_mainPrice']")
+            if not precios:
+                precios = page.query_selector_all("div[class*='Price_mainPrice']")
+            
             if precios:
                 texto = precios[0].inner_text()
                 print(f"Precio detectado en Skyscanner: {texto}")
                 browser.close()
                 return {"plataforma": "Skyscanner", "precio": texto, "url": url}
+            
+            print("No se encontraron resultados en Skyscanner (posible bloqueo de bot).")
         except Exception as e:
             print(f"Error en Skyscanner: {e}")
         
