@@ -17,79 +17,60 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def enviar_alerta(mensaje):
-    print(f"Intentando enviar alerta a Telegram...")
+    print(f"Enviando alerta a Telegram...")
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("⚠️ ERROR: No hay credenciales de Telegram configuradas.")
-        print(f"Contenido: {mensaje}")
+        print(f"⚠️ Sin Telegram. Mensaje: {mensaje}")
         return
-    
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": f"✈️ ¡MONITOR DE VUELOS! ✈️\n\n{mensaje}"}
-    
     try:
-        response = requests.post(url, json=payload, timeout=10)
-        if response.status_code == 200:
-            print("✅ Mensaje enviado exitosamente a Telegram.")
-        else:
-            print(f"❌ Error de Telegram (Status {response.status_code}): {response.text}")
+        requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        print(f"❌ Error de red: {e}")
+        print(f"❌ Error Telegram: {e}")
 
 def parse_price(text):
     if not text: return float('inf')
-    clean_text = text.replace('.', '').replace(',', '').replace('$', '').replace('CLP', '').strip()
-    numbers = re.findall(r'\d+', clean_text)
-    if numbers:
-        val = int(numbers[0])
-        if val > 5000: # Asumimos CLP
-            return val / 950
-        return val
+    clean = "".join(re.findall(r'\d+', text.replace('.', '').replace(',', '')))
+    if clean:
+        val = int(clean)
+        return val / 950 if val > 5000 else val
     return float('inf')
 
-def parse_duration(text):
-    if not text: return 9999
-    text = text.lower().replace(' ', '')
-    hours = 0
-    minutes = 0
-    h_match = re.search(r'(\d+)h', text)
-    m_match = re.search(r'(\d+)m', text)
-    hm_match = re.search(r'(\d+):(\d+)', text)
-    
-    if h_match:
-        hours = int(h_match.group(1))
-    if m_match:
-        minutes = int(m_match.group(1))
-    if not h_match and not m_match and hm_match:
-        hours = int(hm_match.group(1))
-        minutes = int(hm_match.group(2))
-        
-    if hours == 0 and minutes == 0:
-        return 9999
-    return hours * 60 + minutes
+def extract_duration_minutes(text):
+    if not text: return None
+    text = text.lower()
+    hm = re.search(r'(\d+):(\d+)', text)
+    if hm: return int(hm.group(1)) * 60 + int(hm.group(2))
+    h = 0
+    m = 0
+    h_match = re.search(r'(\d+)\s*(h|hour|hora|hr)', text)
+    if h_match: h = int(h_match.group(1))
+    m_match = re.search(r'(\d+)\s*(m|min|minuto)', text)
+    if m_match: m = int(m_match.group(1))
+    if h == 0 and m == 0: return None
+    return h * 60 + m
 
 def scrape_google_flights():
     url = f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36", locale="es-CL")
-        page = context.new_page()
-        print(f"Buscando en Google Flights: {url}")
+        page = browser.new_page(locale="es-CL")
+        print(f"Buscando en Google Flights...")
         try:
             page.goto(url, wait_until="networkidle", timeout=60000)
             time.sleep(5)
-            flights = page.query_selector_all("[role='listitem']")
-            for flight in flights:
-                text = flight.inner_text()
-                if not text or ("$" not in text and "CLP" not in text): continue
-                dur_match = re.search(r'(\d+ h \d+ min|\d+ h|\d+ min)', text)
-                duracion_str = dur_match.group(0) if dur_match else ""
-                if parse_duration(duracion_str) <= MAX_DURACION_MINUTOS:
-                    precio_match = re.search(r'(CLP|USD|\$)\s*[\d\.\,]+', text)
-                    if precio_match:
+            items = page.query_selector_all("[role='listitem']")
+            for item in items:
+                text = item.inner_text()
+                if not any(c in text for c in ["$", "CLP", "USD"]): continue
+                dur = extract_duration_minutes(text)
+                if dur and dur <= MAX_DURACION_MINUTOS:
+                    precio = re.search(r'[\d\.\,]{3,}', text.replace('$', '').replace('CLP', ''))
+                    if precio:
                         browser.close()
-                        return {"plataforma": "Google Flights", "precio": precio_match.group(0), "duracion": duracion_str, "url": url}
-        except Exception as e:
-            print(f"Error Google Flights: {e}")
+                        return {"plataforma": "Google Flights", "precio": precio.group(0), "duracion": f"{dur//60}h {dur%60}m", "url": url}
+            print("Google Flights: Sin vuelos < 6h.")
+        except Exception as e: print(f"Error Google: {e}")
         browser.close()
     return None
 
@@ -97,24 +78,21 @@ def scrape_kayak():
     url = f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36", locale="es-CL")
-        page = context.new_page()
-        print(f"Buscando en Kayak: {url}")
+        page = browser.new_page(locale="es-CL")
+        print(f"Buscando en Kayak...")
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
             time.sleep(10)
-            results = page.query_selector_all(".nrc6, .resultInner, [class*='resultWrapper']") 
-            for res in results:
-                text = res.inner_text()
-                dur_match = re.search(r'(\d+h\s*\d+m|\d+h|\d+m)', text)
-                duracion_str = dur_match.group(0) if dur_match else ""
-                if parse_duration(duracion_str) <= MAX_DURACION_MINUTOS:
-                    precio_elem = res.query_selector(".f8F1-price, .price-text, .O3uT-price-text")
-                    if precio_elem:
+            cards = page.query_selector_all(".nrc6, .resultInner, [role='listitem']")
+            for card in cards:
+                text = card.inner_text()
+                dur = extract_duration_minutes(text)
+                if dur and dur <= MAX_DURACION_MINUTOS:
+                    price_elem = card.query_selector(".f8F1-price, .price-text, .O3uT-price-text")
+                    if price_elem:
                         browser.close()
-                        return {"plataforma": "Kayak", "precio": precio_elem.inner_text(), "duracion": duracion_str, "url": url}
-        except Exception as e:
-            print(f"Error Kayak: {e}")
+                        return {"plataforma": "Kayak", "precio": price_elem.inner_text(), "duracion": f"{dur//60}h {dur%60}m", "url": url}
+        except Exception as e: print(f"Error Kayak: {e}")
         browser.close()
     return None
 
@@ -122,24 +100,21 @@ def scrape_latam():
     url = f"https://www.latamairlines.com/cl/es/ofertas-vuelos?origin={ORIGEN}&outbound={FECHA_IDA}T12%3A00%3A00.000Z&destination={DESTINO}&inbound={FECHA_VUELTA}T12%3A00%3A00.000Z&adt=1&chd=0&inf=0&trip=RT&cabin=Economy&redemption=false"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36", locale="es-CL")
-        page = context.new_page()
-        print(f"Buscando en LATAM: {url}")
+        page = browser.new_page(locale="es-CL")
+        print(f"Buscando en LATAM...")
         try:
             page.goto(url, wait_until="networkidle", timeout=90000)
             time.sleep(10)
-            items = page.query_selector_all("li[class*='FlightItem'], [class*='sc-fLcnxK']")
-            for item in items:
-                text = item.inner_text()
-                dur_match = re.search(r'(\d+ h \d+ min|\d+ h|\d+ min)', text)
-                duracion_str = dur_match.group(0) if dur_match else ""
-                if parse_duration(duracion_str) <= MAX_DURACION_MINUTOS:
-                    precio_elem = item.query_selector("span[class*='CurrencyAmount']")
-                    if precio_elem:
+            flights = page.query_selector_all("li[class*='FlightItem'], [class*='FlightCard']")
+            for f in flights:
+                text = f.inner_text()
+                dur = extract_duration_minutes(text)
+                if dur and dur <= MAX_DURACION_MINUTOS:
+                    price = f.query_selector("span[class*='CurrencyAmount']")
+                    if price:
                         browser.close()
-                        return {"plataforma": "LATAM", "precio": precio_elem.inner_text(), "duracion": duracion_str, "url": url}
-        except Exception as e:
-            print(f"Error LATAM: {e}")
+                        return {"plataforma": "LATAM", "precio": price.inner_text(), "duracion": f"{dur//60}h {dur%60}m", "url": url}
+        except Exception as e: print(f"Error LATAM: {e}")
         browser.close()
     return None
 
@@ -147,24 +122,21 @@ def scrape_sky():
     url = f"https://www.skyairline.com/chile/flujo-compra/busqueda-vuelos?origin={ORIGEN}&destination={DESTINO}&departure={FECHA_IDA}&return={FECHA_VUELTA}&adults=1&children=0&infants=0"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36", locale="es-CL")
-        page = context.new_page()
-        print(f"Buscando en SKY: {url}")
+        page = browser.new_page(locale="es-CL")
+        print(f"Buscando en SKY...")
         try:
             page.goto(url, wait_until="networkidle", timeout=90000)
             time.sleep(10)
-            flights = page.query_selector_all(".flight-item, .card-vuelo, [class*='FlightCard']")
-            for f in flights:
-                text = f.inner_text()
-                dur_match = re.search(r'(\d+h\s*\d+m|\d+h|\d+m)', text)
-                duracion_str = dur_match.group(0) if dur_match else ""
-                if parse_duration(duracion_str) <= MAX_DURACION_MINUTOS:
-                    precio_elem = f.query_selector(".price-amount, .amount, [class*='Price']")
-                    if precio_elem:
+            cards = page.query_selector_all(".flight-item, .card-vuelo, [class*='FlightCard']")
+            for c in cards:
+                text = c.inner_text()
+                dur = extract_duration_minutes(text)
+                if dur and dur <= MAX_DURACION_MINUTOS:
+                    price = c.query_selector(".price-amount, .amount, [class*='Price']")
+                    if price:
                         browser.close()
-                        return {"plataforma": "SKY Airline", "precio": precio_elem.inner_text(), "duracion": duracion_str, "url": url}
-        except Exception as e:
-            print(f"Error SKY: {e}")
+                        return {"plataforma": "SKY", "precio": price.inner_text(), "duracion": f"{dur//60}h {dur%60}m", "url": url}
+        except Exception as e: print(f"Error SKY: {e}")
         browser.close()
     return None
 
@@ -172,71 +144,41 @@ def scrape_kiwi():
     url = f"https://www.kiwi.com/en/search/results/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36", locale="en-US")
-        page = context.new_page()
-        print(f"Buscando en Kiwi.com: {url}")
+        page = browser.new_page(locale="en-US")
+        print(f"Buscando en Kiwi.com...")
         try:
             page.goto(url, wait_until="networkidle", timeout=90000)
-            try:
-                page.click("button:has-text('Accept')", timeout=5000)
+            try: page.click("button:has-text('Accept')", timeout=5000)
             except: pass
             time.sleep(10)
             results = page.query_selector_all("[data-test='ResultCardWrapper']")
             for res in results:
                 text = res.inner_text()
-                durations = re.findall(r'(\d+h\s*\d+m|\d+h|\d+m)', text)
-                if durations and all(parse_duration(d) <= MAX_DURACION_MINUTOS for d in durations):
-                    precio_elem = res.query_selector("[data-test='ResultCardPrice']")
-                    if precio_elem:
+                durations = re.findall(r'(\d+h\s*\d+m|\d+h|\d+m|\d+\s*hour|\d+\s*min)', text.lower())
+                minutes = [extract_duration_minutes(d) for d in durations if extract_duration_minutes(d)]
+                if minutes and all(m <= MAX_DURACION_MINUTOS for m in minutes):
+                    price = res.query_selector("[data-test='ResultCardPrice']")
+                    if price:
                         browser.close()
-                        return {"plataforma": "Kiwi.com", "precio": precio_elem.inner_text(), "duracion": ", ".join(durations), "url": url}
-        except Exception as e:
-            print(f"Error Kiwi: {e}")
-        browser.close()
-    return None
-
-def scrape_skyscanner():
-    url = f"https://www.skyscanner.cl/transport/vuelos/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}/?adultsv2=1&sortby=price"
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36", locale="es-CL")
-        page = context.new_page()
-        print(f"Buscando en Skyscanner: {url}")
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=90000)
-            time.sleep(20)
-            cards = page.query_selector_all("div[class*='Ticket_wrapper'], [class*='FlightsTicket']")
-            for card in cards:
-                text = card.inner_text()
-                durations = re.findall(r'(\d+\s*h\s*\d+\s*min|\d+\s*h|\d+\s*min)', text)
-                if durations and all(parse_duration(d) <= MAX_DURACION_MINUTOS for d in durations):
-                    precio_elem = card.query_selector("span[class*='Price_mainPrice'], [class*='PriceText']")
-                    if precio_elem:
-                        browser.close()
-                        return {"plataforma": "Skyscanner", "precio": precio_elem.inner_text(), "duracion": ", ".join(durations), "url": url}
-        except Exception as e:
-            print(f"Error Skyscanner: {e}")
+                        return {"plataforma": "Kiwi.com", "precio": price.inner_text(), "duracion": "Filtro OK", "url": url}
+        except Exception as e: print(f"Error Kiwi: {e}")
         browser.close()
     return None
 
 def monitor():
-    scrapers = [scrape_google_flights, scrape_kayak, scrape_latam, scrape_sky, scrape_kiwi, scrape_skyscanner]
+    scrapers = [scrape_google_flights, scrape_kayak, scrape_latam, scrape_sky, scrape_kiwi]
     resultados = []
-    for scraper in scrapers:
-        try:
-            res = scraper()
-            if res:
-                res['precio_usd'] = parse_price(res['precio'])
-                if res['precio_usd'] != float('inf'):
-                    resultados.append(res)
-                    print(f"✅ {res['plataforma']}: {res['precio']} ({res['duracion']})")
-            else:
-                print(f"❌ {scraper.__name__} sin resultados.")
-        except Exception as e:
-            print(f"Error {scraper.__name__}: {e}")
+    for s in scrapers:
+        res = s()
+        if res:
+            res['precio_usd'] = parse_price(res['precio'])
+            resultados.append(res)
+            print(f"✅ {res['plataforma']}: {res['precio']} ({res['duracion']})")
+        else:
+            print(f"❌ {s.__name__} sin resultados.")
 
     if not resultados:
-        enviar_alerta("⚠️ No se encontraron vuelos de < 6h en esta vuelta.")
+        enviar_alerta("⚠️ No se encontraron vuelos de < 6h en ninguna plataforma.")
         return
 
     mejor = min(resultados, key=lambda x: x['precio_usd'])
