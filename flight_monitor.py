@@ -5,12 +5,12 @@ import re
 import random
 from playwright.sync_api import sync_playwright
 
-# --- CONFIGURACIÓN ESTRICTA ---
+# --- CONFIGURACIÓN ---
 ORIGEN = "SCL"
 DESTINO = "COR"
 FECHA_IDA = "2026-10-09"
 FECHA_VUELTA = "2026-10-12"
-MAX_DURACION_MINUTOS = 360  # 6 horas exactas
+MAX_DURACION_MINUTOS = 360  # 6 Horas
 
 # --- TELEGRAM ---
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -23,24 +23,31 @@ def enviar_telegram(mensaje):
     try: requests.post(url, json=payload, timeout=20)
     except: pass
 
-def get_minutes(text):
-    """Extrae minutos totales. Ejemplo: '1h 30m' -> 90"""
+def get_minutes_robust(text):
+    """Convierte cualquier formato de tiempo a minutos. Ej: '2 h 33 min' -> 153"""
     if not text: return 9999
-    text = text.lower().replace(' ', '')
+    text = text.lower().replace(',', '')
+    
     h = 0
     m = 0
-    h_match = re.search(r'(\d+)h', text)
+    # Buscar horas: '2 h', '2h', '2 hora'
+    h_match = re.search(r'(\d+)\s*(?:h|hour|hora|hr)', text)
     if h_match: h = int(h_match.group(1))
-    m_match = re.search(r'(\d+)m', text)
+    
+    # Buscar minutos: '33 m', '33m', '33 min'
+    m_match = re.search(r'(\d+)\s*(?:m|min|minuto)', text)
     if m_match: m = int(m_match.group(1))
-    # Soporte para formato 01:30
+    
+    # Formato reloj: '02:33'
     if h == 0 and m == 0:
         hm = re.search(r'(\d{1,2}):(\d{2})', text)
         if hm: return int(hm.group(1)) * 60 + int(hm.group(2))
-    return (h * 60 + m) if (h > 0 or m > 0) else 9999
+        
+    total = h * 60 + m
+    return total if total > 0 else 9999
 
-def scrape_agent(p, name, url, item_selector):
-    print(f"🕵️ Agente buscando en {name}...")
+def scrape_agent_v2(p, name, url, item_selector):
+    print(f"🕵️ Escaneando {name}...")
     valid_flights = []
     try:
         browser = p.chromium.launch(headless=True)
@@ -50,41 +57,49 @@ def scrape_agent(p, name, url, item_selector):
             locale="es-CL"
         )
         page = context.new_page()
-        
-        # Navegación con tiempo de espera humano
         page.goto(url, wait_until="domcontentloaded", timeout=90000)
-        time.sleep(25) # Espera crítica para que carguen los precios dinámicos
         
-        # Hacer scroll para "despertar" la página
-        page.mouse.wheel(0, 800)
+        # Espera dinámica: aguardar a que aparezca algún indicio de vuelos
+        time.sleep(20)
+        page.mouse.wheel(0, 1000)
         time.sleep(5)
 
-        # Capturar todos los bloques que parecen vuelos
         items = page.query_selector_all(item_selector)
         if not items and name == "Google Flights":
             items = page.query_selector_all("[role='listitem']")
 
         for item in items:
             inner = item.inner_text()
-            if not any(s in inner.lower() for s in ["$", "clp", "usd", "pesos"]): continue
+            if not any(s in inner.lower() for s in ["$", "clp", "usd", "pesos", "desde"]): continue
             
-            # Extraer todas las duraciones del bloque
-            dur_raw = re.findall(r'(\d+\s*h\s*\d+\s*m|\d+\s*h|\d+\s*m|\d{1,2}:\d{2})', inner.lower())
-            minutes_list = [get_minutes(d) for d in dur_raw if get_minutes(d) > 40]
+            # 1. Extraer todas las duraciones del bloque de texto
+            # Buscamos patrones: '2 h 33 min', '1h 30m', '02:33'
+            dur_matches = re.findall(r'(\d+\s*h\s*\d+\s*min|\d+\s*h\s*\d+\s*m|\d+\s*h|\d+\s*m|\d{1,2}:\d{2})', inner.lower())
+            minutes_list = [get_minutes_robust(d) for d in dur_matches if get_minutes_robust(d) > 40]
             
-            # REGLA DE ORO: Solo vuelos donde CADA tramo sea < 6h
-            if minutes_list and all(m <= MAX_DURACION_MINUTOS for m in minutes_list):
-                # Extraer precio
-                price_match = re.search(r'(?:\$|CLP|USD)?\s?(\d+[\.\,]\d{3})', inner)
-                if not price_match: price_match = re.search(r'(\d{5,})', inner)
+            # 2. Extraer precio
+            p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner)
+            if not p_match: p_match = re.search(r'(\d{5,})', inner)
+            
+            if p_match and minutes_list:
+                p_str = p_match.group(0).strip()
+                p_val_raw = int(re.sub(r'[^\d]', '', p_str))
+                p_val_usd = p_val_raw / 950 if p_val_raw > 5000 else p_val_raw
                 
-                if price_match:
-                    p_str = price_match.group(0).strip()
-                    p_val = int(re.sub(r'[^\d]', '', p_str))
+                # Identificar aerolínea para el reporte
+                airline = "Varias"
+                for a in ["LATAM", "SKY", "Aerolíneas Argentinas", "JetSMART", "Hopper"]:
+                    if a.lower() in inner.lower():
+                        airline = a
+                        break
+
+                # Solo vuelos donde TODOS los tramos detectados sean < 6h
+                if all(m <= MAX_DURACION_MINUTOS for m in minutes_list):
                     valid_flights.append({
-                        "plataforma": name,
-                        "precio_str": p_str,
-                        "precio_val": p_val / 950 if p_val > 5000 else p_val,
+                        "platform": name,
+                        "airline": airline,
+                        "price_str": p_str,
+                        "price_val": p_val_usd,
                         "dur": " / ".join([f"{m//60}h {m%60}m" for m in minutes_list]),
                         "url": url
                     })
@@ -97,37 +112,36 @@ def scrape_agent(p, name, url, item_selector):
 
 def monitor():
     with sync_playwright() as p:
-        # Definición de búsquedas (incluyendo Hopper y Aerolíneas Argentinas vía Kayak/Google por estabilidad)
-        search_configs = [
+        # Fuentes maestras que agrupan a LATAM, SKY, AR, etc.
+        configs = [
             ("Google Flights", f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}", "[role='listitem']"),
-            ("Kayak (incl. Hopper/AR)", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a", ".nrc6, [class*='resultWrapper']"),
-            ("LATAM", f"https://www.latamairlines.com/cl/es/ofertas-vuelos?origin={ORIGEN}&outbound={FECHA_IDA}T12%3A00%3A00.000Z&destination={DESTINO}&inbound={FECHA_VUELTA}T12%3A00%3A00.000Z&adt=1&chd=0&inf=0&trip=RT&cabin=Economy&redemption=false", "li[class*='FlightItem']"),
-            ("SKY", f"https://www.skyairline.com/chile/flujo-compra/busqueda-vuelos?origin={ORIGEN}&destination={DESTINO}&departure={FECHA_IDA}&return={FECHA_VUELTA}&adults=1&children=0&infants=0", ".flight-item, [class*='FlightCard']"),
+            ("Kayak", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a", ".nrc6, [class*='resultWrapper']"),
             ("Kiwi.com", f"https://www.kiwi.com/en/search/results/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}", "[data-test='ResultCardWrapper']")
         ]
 
-        all_valid_flights = []
-        for name, url, sel in search_configs:
-            res = scrape_agent(p, name, url, sel)
-            if res: all_valid_flights.extend(res)
+        all_flights = []
+        for name, url, sel in configs:
+            res = scrape_agent_v2(p, name, url, sel)
+            if res: all_flights.extend(res)
 
-        if not all_valid_flights:
-            enviar_telegram("🔄 *Monitor de Vuelo*: No se encontraron vuelos de menos de 6 horas en ninguna plataforma. Seguiré buscando opciones rápidas. 🫡")
+        if not all_flights:
+            enviar_telegram("🔄 *Monitor*: Sin vuelos < 6h detectados. Las aerolíneas podrían estar bloqueando el servidor. Re-intentaré con nueva identidad en la próxima vuelta. 🫡")
             return
 
-        # Filtrar el mejor por plataforma para no repetir
-        final_report = {}
-        for f in all_valid_flights:
-            if f['plataforma'] not in final_report or f['precio_val'] < final_report[f['plataforma']]['precio_val']:
-                final_report[f['plataforma']] = f
+        # Consolidar: Mejor precio por aerolínea
+        report_data = {}
+        for f in all_flights:
+            key = f"{f['airline']} ({f['platform']})"
+            if key not in report_data or f['price_val'] < report_data[key]['price_val']:
+                report_data[key] = f
 
-        # Construir mensaje
-        mensaje = "✈️ *VUELOS ENCONTRADOS (< 6 HORAS)* ✈️\n\n"
-        # Ordenar por precio
-        sorted_flights = sorted(final_report.values(), key=lambda x: x['precio_val'])
+        # Generar mensaje ordenado por precio
+        sorted_report = sorted(report_data.values(), key=lambda x: x['price_val'])
         
-        for f in sorted_flights:
-            mensaje += f"✅ *{f['plataforma']}*: ${f['precio_str']}\n"
+        mensaje = "✈️ *VUELOS < 6H ENCONTRADOS* ✈️\n\n"
+        for f in sorted_report:
+            mensaje += f"✅ *{f['airline']}* (${f['platform']})\n"
+            mensaje += f"💰 Precio: *{f['price_str']}*\n"
             mensaje += f"⏱️ Duración: {f['dur']}\n"
             mensaje += f"🔗 [Ver Vuelo]({f['url']})\n\n"
 
