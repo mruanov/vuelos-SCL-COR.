@@ -60,40 +60,50 @@ def scrape_direct(p, name, url, item_selector):
         page.goto(url, wait_until="domcontentloaded", timeout=90000)
         
         # --- BYPASS DE CONSENTIMIENTO/COOKIES ---
-        # Intenta cerrar carteles de Google, LATAM, etc. que bloquean el contenido en la nube
         try:
-            # Lista de selectores comunes para botones de "Aceptar"
+            # Selectores más agresivos para cerrar banners
+            page.wait_for_timeout(5000)
             selectors = [
                 "button:has-text('Aceptar')", "button:has-text('Accept')", 
                 "button:has-text('Agree')", "button:has-text('Entendido')",
-                ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button"
+                "button:has-text('Rechazar')", "button:has-text('Deny')",
+                ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button",
+                "#onetrust-accept-btn-handler", "#gdpr-consent-notice button"
             ]
             for sel in selectors:
-                if page.is_visible(sel):
-                    page.click(sel)
-                    time.sleep(2)
+                try:
+                    if page.locator(sel).first.is_visible():
+                        page.locator(sel).first.click()
+                        time.sleep(2)
+                except: pass
         except: pass
 
         time.sleep(25)
-        page.evaluate("window.scrollTo(0, 800)")
+        page.evaluate("window.scrollTo(0, 1000)")
         time.sleep(5)
         
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
 
         rejected_count = 0
-        for item in items:
+        for i, item in enumerate(items):
             try:
                 inner = item.inner_text()
                 if not inner: continue
                 
-                # RegEx robusta para duraciones (validada)
-                dur_regex = r'(\d+\s*(?:hour|hora|hr|h|s)\s*\d*\s*(?:minuto|min|m|s)?|\d+\s*(?:minuto|min|m|s)|\d{1,2}:\d{2})'
-                dur_matches = re.findall(dur_regex, inner.lower())
-                mins = [get_minutes_robust(d) for d in dur_matches]
-                mins = [m for m in mins if m < 1440]
+                # 1. Extraer Duraciones (Regex mejorada)
+                # Buscamos primero formatos con h/m para no confundir con horas de salida/llegada
+                dur_regex_explicit = r'(\d+\s*(?:hour|hora|hr|h|s)\s*\d*\s*(?:minuto|min|m|s)?|\d+\s*(?:minuto|min|m|s))'
+                dur_matches = re.findall(dur_regex_explicit, inner.lower())
                 
-                # Extraer precio (más flexible)
+                # Si no hay h/m, buscamos HH:MM solo como último recurso
+                if not dur_matches:
+                    dur_matches = re.findall(r'(\d{1,2}:\d{2})', inner.lower())
+                
+                mins = [get_minutes_robust(d) for d in dur_matches]
+                mins = [m for m in mins if 10 < m < 1440] # Filtro de cordura
+                
+                # 2. Extraer Precio
                 p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner)
                 if not p_match: p_match = re.search(r'(\d{5,})', inner)
                 
@@ -102,6 +112,10 @@ def scrape_direct(p, name, url, item_selector):
                     p_val_raw = int(re.sub(r'[^\d]', '', p_str))
                     p_val_usd = p_val_raw / 950 if p_val_raw > 10000 else p_val_raw
                     
+                    # Log de los primeros 3 para ver qué está pasando
+                    if i < 3:
+                        print(f"      [DEBUG] {name} #{i}: Precio={p_str}, Duraciones={mins}")
+
                     if all(m <= MAX_DURACION_MINUTOS for m in mins):
                         valid_flights.append({
                             "airline": name,
@@ -114,9 +128,8 @@ def scrape_direct(p, name, url, item_selector):
                         rejected_count += 1
                 else:
                     rejected_count += 1
-                    if rejected_count == 1:
-                        # Log del primer elemento rechazado para diagnóstico
-                        print(f"      [DEBUG] Primer elemento rechazado en {name}: {inner.strip()[:100]}...")
+                    if i < 1:
+                        print(f"      [DEBUG] {name} #{i} Rechazado (No parseado): {inner.strip()[:80]}...")
             except Exception:
                 continue
     except Exception as e:
@@ -126,7 +139,7 @@ def scrape_direct(p, name, url, item_selector):
             browser.close()
     
     if not valid_flights:
-        print(f"   ❌ {name}: No se detectaron vuelos rápidos (Rechazados: {rejected_count}).")
+        print(f"   ❌ {name}: Sin vuelos rápidos (Rechazados: {rejected_count}).")
         return None
         
     best = min(valid_flights, key=lambda x: x["price_val"])
