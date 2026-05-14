@@ -17,28 +17,38 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def enviar_telegram(mensaje):
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
+        print(f"Telegram not configured. Message: {mensaje[:100]}...")
+        return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": mensaje, "parse_mode": "Markdown", "disable_web_page_preview": True}
-    requests.post(url, json=payload, timeout=20)
+    try:
+        r = requests.post(url, json=payload, timeout=20)
+        if r.status_code != 200:
+            print(f"Error Telegram: {r.text}")
+    except Exception as e:
+        print(f"Error enviando a Telegram: {e}")
 
 def get_minutes_robust(text):
     if not text: return 9999
-    text = text.lower().replace(',', '')
+    text = text.lower().replace(',', '').replace('.', '')
     h, m = 0, 0
-    h_match = re.search(r'(\d+)\s*(?:h|hour|hora|hr)', text)
+    h_match = re.search(r'(\d+)\s*(?:hour|hora|hr|h)', text)
     if h_match: h = int(h_match.group(1))
-    m_match = re.search(r'(\d+)\s*(?:m|min|minuto)', text)
+    m_match = re.search(r'(\d+)\s*(?:minuto|min|m)', text)
     if m_match: m = int(m_match.group(1))
+    
     if h == 0 and m == 0:
         hm = re.search(r'(\d{1,2}):(\d{2})', text)
         if hm: return int(hm.group(1)) * 60 + int(hm.group(2))
+        
     total = h * 60 + m
-    return total if total > 30 else 9999
+    return total if total > 10 else 9999 
 
 def scrape_direct(p, name, url, item_selector):
-    print(f"✈️ Entrando directamente a {name}...")
+    print(f"✈️ Entrando a {name}...")
     valid_flights = []
+    browser = None
     try:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -48,58 +58,65 @@ def scrape_direct(p, name, url, item_selector):
         )
         page = context.new_page()
         page.goto(url, wait_until="domcontentloaded", timeout=90000)
-        
-        # Espera paciente para carga de precios internos
         time.sleep(25)
-        page.evaluate("window.scrollTo(0, 600)")
+        page.evaluate("window.scrollTo(0, 800)")
+        time.sleep(5)
         
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
 
         for item in items:
-            inner = item.inner_text()
-            if not any(s in inner.lower() for s in ["$", "clp", "usd", "pesos", "desde"]): continue
-            
-            # Extraer duraciones del bloque
-            dur_matches = re.findall(r'(\d+\s*h\s*\d+\s*min|\d+\s*h|\d+\s*m|\d{1,2}:\d{2})', inner.lower())
-            mins = [get_minutes_robust(d) for d in dur_matches if get_minutes_robust(d) < 1440]
-            
-            # Extraer precio
-            p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner)
-            if not p_match: p_match = re.search(r'(\d{5,})', inner)
-            
-            if p_match and mins:
-                p_str = p_match.group(0).strip()
-                p_val_raw = int(re.sub(r'[^\d]', '', p_str))
-                p_val_usd = p_val_raw / 950 if p_val_raw > 5000 else p_val_raw
+            try:
+                inner = item.inner_text()
+                if not inner: continue
+                if not any(s in inner.lower() for s in ["$", "clp", "usd", "pesos", "desde", "total", "ida y vuelta"]): continue
                 
-                # Filtro Estricto: Todos los tramos < 6h
-                if all(m <= MAX_DURACION_MINUTOS for m in mins):
-                    valid_flights.append({
-                        "airline": name,
-                        "price_str": p_str,
-                        "price_val": p_val_usd,
-                        "dur": " / ".join([f"{m//60}h {m%60}m" for m in mins]),
-                        "url": url
-                    })
-        
-        browser.close()
+                dur_regex = r'(\d+\s*(?:hour|hora|hr|h|s)\s*\d*\s*(?:minuto|min|m|s)?|\d+\s*(?:minuto|min|m|s)|\d{1,2}:\d{2})'
+                dur_matches = re.findall(dur_regex, inner.lower())
+                mins = [get_minutes_robust(d) for d in dur_matches]
+                mins = [m for m in mins if m < 1440]
+                
+                p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner)
+                if not p_match: p_match = re.search(r'(\d{5,})', inner)
+                
+                if p_match and mins:
+                    p_str = p_match.group(0).strip()
+                    p_val_raw = int(re.sub(r'[^\d]', '', p_str))
+                    p_val_usd = p_val_raw / 950 if p_val_raw > 10000 else p_val_raw
+                    
+                    if all(m <= MAX_DURACION_MINUTOS for m in mins):
+                        valid_flights.append({
+                            "airline": name,
+                            "price_str": p_str,
+                            "price_val": p_val_usd,
+                            "dur": " / ".join([f"{m//60}h {m%60}m" for m in mins]),
+                            "url": url
+                        })
+            except Exception:
+                continue
     except Exception as e:
-        print(f"   ⚠️ Error en {name}: {str(e)[:50]}")
+        print(f"   ⚠️ Error en {name}: {str(e)[:100]}")
+    finally:
+        if browser:
+            browser.close()
     
-    return min(valid_flights, key=lambda x: x["price_val"]) if valid_flights else None
+    if not valid_flights:
+        print(f"   ❌ {name}: No se encontraron vuelos rápidos.")
+        return None
+        
+    best = min(valid_flights, key=lambda x: x["price_val"])
+    print(f"   ✅ {name}: Mejor precio {best['price_str']}")
+    return best
 
 def monitor():
     with sync_playwright() as p:
-        # Búsquedas Directas en cada portal
         targets = [
-            ("LATAM", f"https://www.latamairlines.com/cl/es/ofertas-vuelos?origin={ORIGEN}&outbound={FECHA_IDA}T12%3A00%3A00.000Z&destination={DESTINO}&inbound={FECHA_VUELTA}T12%3A00%3A00.000Z&adt=1&chd=0&inf=0&trip=RT&cabin=Economy&redemption=false", "li[class*='FlightItem'], .sc-fLcnxK"),
+            ("LATAM", f"https://www.latamairlines.com/cl/es/ofertas-vuelos?origin={ORIGEN}&outbound={FECHA_IDA}T12%3A00%3A00.000Z&destination={DESTINO}&inbound={FECHA_VUELTA}T12%3A00%3A00.000Z&adt=1&chd=0&inf=0&trip=RT&cabin=Economy&redemption=false", "li[role='listitem'], .sc-fLcnxK, [class*='FlightItem']"),
+            ("Google Flights", f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}", "[role='listitem'], .mzYp9c"),
+            ("Kayak", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a", ".nrc6, [class*='resultWrapper'], .Base-Results-ResultCard"),
             ("SKY", f"https://www.skyairline.com/chile/flujo-compra/busqueda-vuelos?origin={ORIGEN}&destination={DESTINO}&departure={FECHA_IDA}&return={FECHA_VUELTA}&adults=1&children=0&infants=0", ".flight-item, [class*='FlightCard']"),
             ("Aerolíneas Arg.", f"https://www.aerolineas.com.ar/search/vuelos/SCL/COR?date1=09-10-2026&date2=12-10-2026&adults=1&children=0&infants=0", ".flight-card, [class*='result']"),
             ("Kiwi.com", f"https://www.kiwi.com/en/search/results/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}", "[data-test='ResultCardWrapper']"),
-            ("Google Flights", f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}", "[role='listitem']"),
-            ("Kayak", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a", ".nrc6, [class*='resultWrapper']"),
-            ("Hopper (Web)", f"https://www.hopper.com/search/flights/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}", "div[class*='ResultCard']")
         ]
 
         results = []
@@ -108,12 +125,12 @@ def monitor():
             if res: results.append(res)
 
         if not results:
-            enviar_telegram("🔄 *Monitor Individual*: No se detectaron vuelos de menos de 6 horas entrando directamente a las aerolíneas. Seguiré re-intentando. 🫡")
+            enviar_telegram("🔄 *Monitor de Vuelos*: No se detectaron vuelos rápidos en esta pasada. 🫡")
             return
 
         results.sort(key=lambda x: x["price_val"])
         
-        mensaje = "✈️ *REPORTE DE BÚSQUEDA DIRECTA* ✈️\n\n"
+        mensaje = "✈️ *REPORTE DE VUELOS ENCONTRADOS* ✈️\n\n"
         for r in results:
             mensaje += f"✅ *{r['airline']}*\n"
             mensaje += f"💰 Precio: *{r['price_str']}*\n"
