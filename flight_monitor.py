@@ -58,6 +58,22 @@ def scrape_direct(p, name, url, item_selector):
         )
         page = context.new_page()
         page.goto(url, wait_until="domcontentloaded", timeout=90000)
+        
+        # --- BYPASS DE CONSENTIMIENTO/COOKIES ---
+        # Intenta cerrar carteles de Google, LATAM, etc. que bloquean el contenido en la nube
+        try:
+            # Lista de selectores comunes para botones de "Aceptar"
+            selectors = [
+                "button:has-text('Aceptar')", "button:has-text('Accept')", 
+                "button:has-text('Agree')", "button:has-text('Entendido')",
+                ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button"
+            ]
+            for sel in selectors:
+                if page.is_visible(sel):
+                    page.click(sel)
+                    time.sleep(2)
+        except: pass
+
         time.sleep(25)
         page.evaluate("window.scrollTo(0, 800)")
         time.sleep(5)
@@ -65,17 +81,19 @@ def scrape_direct(p, name, url, item_selector):
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
 
+        rejected_count = 0
         for item in items:
             try:
                 inner = item.inner_text()
                 if not inner: continue
-                if not any(s in inner.lower() for s in ["$", "clp", "usd", "pesos", "desde", "total", "ida y vuelta"]): continue
                 
+                # RegEx robusta para duraciones (validada)
                 dur_regex = r'(\d+\s*(?:hour|hora|hr|h|s)\s*\d*\s*(?:minuto|min|m|s)?|\d+\s*(?:minuto|min|m|s)|\d{1,2}:\d{2})'
                 dur_matches = re.findall(dur_regex, inner.lower())
                 mins = [get_minutes_robust(d) for d in dur_matches]
                 mins = [m for m in mins if m < 1440]
                 
+                # Extraer precio (más flexible)
                 p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner)
                 if not p_match: p_match = re.search(r'(\d{5,})', inner)
                 
@@ -92,6 +110,13 @@ def scrape_direct(p, name, url, item_selector):
                             "dur": " / ".join([f"{m//60}h {m%60}m" for m in mins]),
                             "url": url
                         })
+                    else:
+                        rejected_count += 1
+                else:
+                    rejected_count += 1
+                    if rejected_count == 1:
+                        # Log del primer elemento rechazado para diagnóstico
+                        print(f"      [DEBUG] Primer elemento rechazado en {name}: {inner.strip()[:100]}...")
             except Exception:
                 continue
     except Exception as e:
@@ -101,7 +126,7 @@ def scrape_direct(p, name, url, item_selector):
             browser.close()
     
     if not valid_flights:
-        print(f"   ❌ {name}: No se encontraron vuelos rápidos.")
+        print(f"   ❌ {name}: No se detectaron vuelos rápidos (Rechazados: {rejected_count}).")
         return None
         
     best = min(valid_flights, key=lambda x: x["price_val"])
