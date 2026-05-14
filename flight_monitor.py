@@ -78,11 +78,16 @@ def scrape_direct(p, name, url, item_selector):
                 except: pass
         except: pass
 
-        time.sleep(15)
-        # Scroll múltiple (5 veces) para forzar lazy loading de vuelos más baratos
+        # Esperar a que carguen los resultados
+        try:
+            page.wait_for_selector(item_selector, timeout=20000)
+        except: pass
+
+        time.sleep(10)
+        # Scroll lento (5 veces) para forzar lazy loading de vuelos más baratos
         for s in range(5):
             page.evaluate("window.scrollBy(0, 1200)")
-            time.sleep(4)
+            time.sleep(5)
         
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
@@ -120,6 +125,10 @@ def scrape_direct(p, name, url, item_selector):
                     p_val_raw = int(re.sub(r'[^\d]', '', p_str))
                     p_val_usd = p_val_raw / 950 if p_val_raw > 10000 else p_val_raw
                     
+                    # --- DEBUG ESPECÍFICO PARA EL VUELO DE 349.000 ---
+                    if 340000 <= p_val_raw <= 360000:
+                        print(f"      [TARGET DEBUG] {name}: Precio={p_str}, Mins={mins}, Texto={inner.strip()[:150]}...")
+
                     if i < 2:
                         print(f"      [DEBUG] {name} #{i}: Precio={p_str}, Duraciones={mins}")
 
