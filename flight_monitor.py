@@ -78,12 +78,22 @@ def scrape_direct(p, name, url, item_selector):
                 except: pass
         except: pass
 
-        time.sleep(25)
-        page.evaluate("window.scrollTo(0, 1000)")
-        time.sleep(5)
+        time.sleep(15)
+        # Scroll múltiple (5 veces) para forzar lazy loading de vuelos más baratos
+        for s in range(5):
+            page.evaluate("window.scrollBy(0, 1200)")
+            time.sleep(4)
         
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
+
+        # Diagnóstico avanzado si no detecta nada
+        if len(items) == 0:
+            try:
+                bt = page.inner_text("body").strip()
+                bt = re.sub(r'\s+', ' ', bt)
+                print(f"      [DIAGNOSTIC] {name} Body: {bt[:400]}...")
+            except: pass
 
         rejected_count = 0
         for i, item in enumerate(items):
@@ -91,17 +101,15 @@ def scrape_direct(p, name, url, item_selector):
                 inner = item.inner_text()
                 if not inner: continue
                 
-                # 1. Extraer Duraciones (Regex mejorada)
-                # Buscamos primero formatos con h/m para no confundir con horas de salida/llegada
-                dur_regex_explicit = r'(\d+\s*(?:hour|hora|hr|h|s)\s*\d*\s*(?:minuto|min|m|s)?|\d+\s*(?:minuto|min|m|s))'
+                # 1. Extraer Duraciones (Regex afinada: quitamos la 's' problemática)
+                dur_regex_explicit = r'(\d+\s*(?:horas?|hours?|hrs?|h)\s*\d*\s*(?:minutos?|mins?|m)?|\d+\s*(?:minutos?|mins?|m))'
                 dur_matches = re.findall(dur_regex_explicit, inner.lower())
                 
-                # Si no hay h/m, buscamos HH:MM solo como último recurso
                 if not dur_matches:
                     dur_matches = re.findall(r'(\d{1,2}:\d{2})', inner.lower())
                 
                 mins = [get_minutes_robust(d) for d in dur_matches]
-                mins = [m for m in mins if 10 < m < 1440] # Filtro de cordura
+                mins = [m for m in mins if 10 < m < 1440]
                 
                 # 2. Extraer Precio
                 p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner)
@@ -112,8 +120,7 @@ def scrape_direct(p, name, url, item_selector):
                     p_val_raw = int(re.sub(r'[^\d]', '', p_str))
                     p_val_usd = p_val_raw / 950 if p_val_raw > 10000 else p_val_raw
                     
-                    # Log de los primeros 3 para ver qué está pasando
-                    if i < 3:
+                    if i < 2:
                         print(f"      [DEBUG] {name} #{i}: Precio={p_str}, Duraciones={mins}")
 
                     if all(m <= MAX_DURACION_MINUTOS for m in mins):
@@ -128,8 +135,6 @@ def scrape_direct(p, name, url, item_selector):
                         rejected_count += 1
                 else:
                     rejected_count += 1
-                    if i < 1:
-                        print(f"      [DEBUG] {name} #{i} Rechazado (No parseado): {inner.strip()[:80]}...")
             except Exception:
                 continue
     except Exception as e:
