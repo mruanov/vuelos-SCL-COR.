@@ -21,7 +21,13 @@ def enviar_telegram(mensaje):
         print(f"Telegram not configured. Message: {mensaje[:100]}...")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": mensaje, "parse_mode": "Markdown", "disable_web_page_preview": True}
+    # Usamos HTML para evitar errores con caracteres especiales en Markdown
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID, 
+        "text": mensaje, 
+        "parse_mode": "HTML", 
+        "disable_web_page_preview": True
+    }
     try:
         r = requests.post(url, json=payload, timeout=20)
         if r.status_code != 200:
@@ -71,7 +77,6 @@ def apply_stealth_robust(context, page):
         # 3. Intentar stealth (version vieja)
         try:
             from playwright_stealth import stealth
-            # Si stealth es un modulo, buscamos la funcion dentro
             if hasattr(stealth, 'stealth'):
                 stealth.stealth(page)
                 return True
@@ -209,14 +214,17 @@ def monitor():
             if res: results.append(res)
 
         if not results:
-            enviar_telegram("No se detectaron vuelos rápidos en esta pasada.")
+            enviar_telegram("<b>Monitor de Vuelos:</b> No se detectaron vuelos rápidos en esta pasada. 🫡")
             return
 
         results.sort(key=lambda x: x["price_val"])
         
-        mensaje = "Reporte de Vuelos:\n\n"
+        mensaje = "✈️ <b>REPORTE DE VUELOS ENCONTRADOS</b> ✈️\n\n"
         for r in results:
-            mensaje += f"{r['airline']}: {r['price_str']} ({r['dur']})\n{r['url']}\n\n"
+            mensaje += f"✅ <b>{r['airline']}</b>\n"
+            mensaje += f"💰 Precio: <b>{r['price_str']}</b>\n"
+            mensaje += f"⏱️ Duración: {r['dur']}\n"
+            mensaje += f"🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
 
         enviar_telegram(mensaje)
 
