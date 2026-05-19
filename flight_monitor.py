@@ -12,6 +12,13 @@ FECHA_IDA = "2026-10-09"
 FECHA_VUELTA = "2026-10-12"
 MAX_DURACION_MINUTOS = 420 # 7 Horas (Flexible para escalas eficientes)
 
+USER_AGENTS = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
+]
+
 # --- TELEGRAM ---
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -77,6 +84,7 @@ def apply_stealth_robust(context, page):
         # 3. Intentar stealth (version vieja)
         try:
             from playwright_stealth import stealth
+            # Si stealth es un modulo, buscamos la funcion dentro
             if hasattr(stealth, 'stealth'):
                 stealth.stealth(page)
                 return True
@@ -87,13 +95,19 @@ def apply_stealth_robust(context, page):
     except ImportError:
         pass
     
-    # Polyfill manual si falla todo lo anterior
+    # Polyfill manual avanzado
     try:
         page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
             window.chrome = { runtime: {} };
             Object.defineProperty(navigator, 'languages', { get: () => ['es-CL', 'es', 'en-US', 'en'] });
             Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            const getParameter = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 37445) return 'Intel Open Source Technology Center';
+                if (parameter === 37446) return 'Mesa DRI Intel(R) HD Graphics 620 (Kaby Lake GT2)';
+                return getParameter.apply(this, arguments);
+            };
         """)
     except: pass
     return False
@@ -105,15 +119,27 @@ def scrape_direct(p, name, url, item_selector):
     browser = None
     try:
         browser = p.chromium.launch(headless=True)
+        
+        # Variamos levemente el viewport para evitar huellas fijas
+        w = random.randint(1200, 1400)
+        h = random.randint(800, 1000)
+        
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            viewport={'width': 1280, 'height': 800},
+            user_agent=random.choice(USER_AGENTS),
+            viewport={'width': w, 'height': h},
             locale="es-CL",
             timezone_id="America/Santiago"
         )
         page = context.new_page()
         
         apply_stealth_robust(context, page)
+
+        # Para LATAM y SKY, a veces ir directo a la URL de ofertas levanta sospechas
+        if name in ["LATAM", "SKY"]:
+            try:
+                page.goto("https://www.google.cl", wait_until="domcontentloaded", timeout=30000)
+                time.sleep(random.uniform(2, 4))
+            except: pass
 
         page.goto(url, wait_until="domcontentloaded", timeout=90000)
         
@@ -133,10 +159,10 @@ def scrape_direct(p, name, url, item_selector):
 
         # Esperar a que carguen los resultados
         try:
-            page.wait_for_selector(item_selector, timeout=25000)
+            page.wait_for_selector(item_selector, timeout=35000)
         except: pass
 
-        time.sleep(random.uniform(5, 8))
+        time.sleep(random.uniform(5, 10))
         
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
