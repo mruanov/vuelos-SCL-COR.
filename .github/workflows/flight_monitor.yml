@@ -2,9 +2,10 @@ name: Flight Monitor SCL-COR
 
 on:
   schedule:
-    # 4 veces al día (UTC). 
-    # 08:00, 14:00, 20:00, 02:00 (Hora Chile aprox)
-    - cron: '0 5,11,17,23 * * *'
+    # Corre 4 veces al día (cada 6 horas UTC)
+    # 00:00, 06:00, 12:00, 18:00 UTC
+    # (Aprox 20:00, 02:00, 08:00, 14:00 Hora Chile)
+    - cron: '0 0,6,12,18 * * *'
   workflow_dispatch: 
 
 jobs:
