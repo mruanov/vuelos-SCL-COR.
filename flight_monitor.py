@@ -28,12 +28,7 @@ def enviar_telegram(mensaje):
         print(f"Telegram not configured. Message: {mensaje[:100]}...")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID, 
-        "text": mensaje, 
-        "parse_mode": "HTML", 
-        "disable_web_page_preview": True
-    }
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": mensaje, "parse_mode": "HTML", "disable_web_page_preview": True}
     try:
         r = requests.post(url, json=payload, timeout=20)
         if r.status_code != 200:
@@ -84,12 +79,6 @@ def apply_stealth_robust(context, page):
             window.chrome = { runtime: {} };
             Object.defineProperty(navigator, 'languages', { get: () => ['es-CL', 'es', 'en-US', 'en'] });
             Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-            const getParameter = WebGLRenderingContext.prototype.getParameter;
-            WebGLRenderingContext.prototype.getParameter = function(parameter) {
-                if (parameter === 37445) return 'Intel Open Source Technology Center';
-                if (parameter === 37446) return 'Mesa DRI Intel(R) HD Graphics 620 (Kaby Lake GT2)';
-                return getParameter.apply(this, arguments);
-            };
         """)
     except: pass
     return False
@@ -113,12 +102,14 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
 
         if root_url:
             try:
-                page.goto(root_url, wait_until="domcontentloaded", timeout=30000)
-                time.sleep(random.uniform(2, 4))
+                page.goto(root_url, wait_until="domcontentloaded", timeout=40000)
+                time.sleep(random.uniform(3, 5))
+                try: page.mouse.move(random.randint(100, 500), random.randint(100, 500))
+                except: pass
             except: pass
 
-        page.goto(url, wait_until="domcontentloaded", timeout=90000)
-        time.sleep(random.uniform(4, 6))
+        page.goto(url, wait_until="domcontentloaded", timeout=95000)
+        time.sleep(random.uniform(5, 8))
         
         selectors = ["button:has-text('Aceptar')", "button:has-text('Accept')", "button:has-text('Agree')", "button:has-text('Entendido')", ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button"]
         for sel in selectors:
@@ -143,6 +134,15 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
             try:
                 inner = item.inner_text()
                 if not inner or len(inner) < 30: continue
+                
+                airline_detected = name
+                if name in ["Google Flights", "Kayak", "Kiwi.com"]:
+                    known = ["LATAM", "JetSMART", "SKY", "Aerolíneas Argentinas", "Iberia", "Copa", "Flybondi"]
+                    for k in known:
+                        if k.lower() in inner.lower():
+                            airline_detected = k
+                            break
+
                 dur_regex = r'(\d+\s*(?:horas?|hours?|hrs?|h)\s*\d*\s*(?:minutos?|mins?|m)?|\d+\s*(?:minutos?|mins?|m))'
                 dur_matches = re.findall(dur_regex, inner.lower())
                 if not dur_matches: dur_matches = re.findall(r'(\d{1,2}[h:]\d{2})', inner.lower())
@@ -150,12 +150,13 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
                 mins = [m for m in mins if 20 < m < 1440]
                 p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner, re.IGNORECASE)
                 if not p_match: p_match = re.search(r'(\d{5,})', inner)
+                
                 if p_match and mins:
                     p_str = p_match.group(0).strip()
                     p_val_raw = int(re.sub(r'[^\d]', '', p_str))
                     p_val_norm = p_val_raw / 950 if p_val_raw > 10000 else p_val_raw
                     if all(m <= MAX_DURACION_MINUTOS for m in mins):
-                        valid_flights.append({"airline": name, "price_str": p_str, "price_val": p_val_norm, "dur": " / ".join([f"{m//60}h {m%60}m" for m in mins]), "url": url})
+                        valid_flights.append({"airline": airline_detected, "price_str": p_str, "price_val": p_val_norm, "dur": " / ".join([f"{m//60}h {m%60}m" for m in mins]), "url": url})
                     else: rejected_count += 1
                 else: rejected_count += 1
             except Exception: continue
@@ -166,7 +167,7 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
         print(f"   Sin vuelos rápidos (Rechazados: {rejected_count}).")
         return None
     best = min(valid_flights, key=lambda x: x["price_val"])
-    print(f"   Mejor precio {best['price_str']}")
+    print(f"   Mejor precio {best['price_str']} ({best['airline']})")
     return best
 
 def monitor():
