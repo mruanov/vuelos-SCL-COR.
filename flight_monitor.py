@@ -23,6 +23,8 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
 ]
 
+MOBILE_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1"
+
 # --- TELEGRAM ---
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -87,33 +89,28 @@ def apply_stealth_robust(context, page):
     except: pass
     return False
 
-def scrape_direct(p, name, url, item_selector, root_url=None):
+def scrape_direct(p, name, url, item_selector, root_url=None, is_mobile=False):
     print(f"Entrando a {name}...")
     found_flights = []
     browser = None
     try:
         browser = p.chromium.launch(headless=True)
-        w, h = random.randint(1250, 1350), random.randint(850, 950)
-        context = browser.new_context(
-            user_agent=random.choice(USER_AGENTS),
-            viewport={'width': w, 'height': h},
-            locale="es-CL",
-            timezone_id="America/Santiago"
-        )
+        ua = MOBILE_USER_AGENT if is_mobile else random.choice(USER_AGENTS)
+        w, h = (390, 844) if is_mobile else (random.randint(1250, 1350), random.randint(850, 950))
+        context = browser.new_context(user_agent=ua, viewport={'width': w, 'height': h}, locale="es-CL", timezone_id="America/Santiago", is_mobile=is_mobile)
         page = context.new_page()
         apply_stealth_robust(context, page)
 
         if root_url:
             try:
                 page.goto(root_url, wait_until="domcontentloaded", timeout=40000)
-                time.sleep(random.uniform(2, 4))
+                time.sleep(random.uniform(3, 5))
             except: pass
 
         page.goto(url, wait_until="domcontentloaded", timeout=95000)
-        time.sleep(random.uniform(5, 8))
+        time.sleep(random.uniform(10, 15))
         
-        # BYPASS DE CONSENTIMIENTO
-        selectors = ["button:has-text('Aceptar')", "button:has-text('Accept')", "button:has-text('Agree')", "button:has-text('Entendido')", ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button"]
+        selectors = ["button:has-text('Aceptar')", "button:has-text('Accept')", "button:has-text('Agree')", "button:has-text('Entendido')", ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button", "#onetrust-accept-btn-handler"]
         for sel in selectors:
             try:
                 if page.locator(sel).first.is_visible():
@@ -121,13 +118,15 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
                     time.sleep(2)
             except: pass
 
+        for _ in range(3):
+            page.evaluate("window.scrollBy(0, 500)")
+            time.sleep(2)
+
         try: page.wait_for_selector(item_selector, timeout=35000)
         except: pass
-        time.sleep(random.uniform(5, 10))
         
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
-
         if len(items) == 0:
             bt = page.inner_text("body").strip()[:300]
             bt_clean = re.sub(r'\s+', ' ', bt)
@@ -137,44 +136,29 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
             try:
                 inner = item.inner_text()
                 if not inner or len(inner) < 30: continue
-                
-                # Intentamos detectar la aerolínea para que sepa de qué trata el vuelo
                 airline_detected = "Varios"
                 known = ["LATAM", "JetSMART", "SKY", "Aerolíneas Argentinas", "Iberia", "Copa", "Flybondi", "Avianca"]
                 for k in known:
                     if k.lower() in inner.lower():
                         airline_detected = k
                         break
-
                 dur_regex = r'(\d+\s*(?:horas?|hours?|hrs?|h)\s*\d*\s*(?:minutos?|mins?|m)?|\d+\s*(?:minutos?|mins?|m))'
                 dur_matches = re.findall(dur_regex, inner.lower())
                 if not dur_matches: dur_matches = re.findall(r'(\d{1,2}[h:]\d{2})', inner.lower())
-                
                 mins = [get_minutes_robust(d) for d in dur_matches]
                 mins = [m for m in mins if 20 < m < 1440]
-                
                 p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner, re.IGNORECASE)
                 if not p_match: p_match = re.search(r'(\d{5,})', inner)
-                
                 if p_match and mins:
                     p_str = p_match.group(0).strip()
                     p_val_raw = int(re.sub(r'[^\d]', '', p_str))
                     p_val_norm = p_val_raw / 950 if p_val_raw > 10000 else p_val_raw
-                    
                     if all(m <= MAX_DURACION_MINUTOS for m in mins):
-                        found_flights.append({
-                            "source": name,
-                            "airline": airline_detected,
-                            "price_str": p_str,
-                            "price_val": p_val_norm,
-                            "dur": " / ".join([f"{m//60}h {m%60}m" for m in mins]),
-                            "url": url
-                        })
+                        found_flights.append({"source": name, "airline": airline_detected, "price_str": p_str, "price_val": p_val_norm, "dur": " / ".join([f"{m//60}h {m%60}m" for m in mins]), "url": url})
             except Exception: continue
     except Exception as e: print(f"   Error en {name}: {str(e)[:100]}")
     finally:
         if browser: browser.close()
-    
     return found_flights
 
 def monitor():
@@ -183,37 +167,27 @@ def monitor():
             ("Google Flights", f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}&curr=CLP", "[role='listitem'], .mzYp9c, .yR1fYc"),
             ("Kayak", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a", ".nrc6, [class*='resultWrapper'], .Base-Results-ResultCard", "https://www.kayak.cl"),
             ("Kiwi.com", f"https://www.kiwi.com/en/search/results/{ORIGEN.lower()}/{DESTINO.lower()}/{FECHA_IDA}/{FECHA_VUELTA}", "[data-test='ResultCardWrapper']", "https://www.kiwi.com"),
-            ("Skyscanner", f"https://www.skyscanner.cl/transport/vuelos/{ORIGEN.lower()}/{DESTINO.lower()}/{YYMMDD_IDA}/{YYMMDD_VUELTA}/?adultsv2=1&cabinclass=economy&rtn=1", "[class*='Ticket_container'], [class*='ResultCard'], .FlightsResults_item")
+            ("Skyscanner", f"https://www.skyscanner.cl/transport/vuelos/{ORIGEN.lower()}/{DESTINO.lower()}/{YYMMDD_IDA}/{YYMMDD_VUELTA}/?adultsv2=1&cabinclass=economy&rtn=1", "[class*='Ticket_container'], [class*='ResultCard'], .FlightsResults_item", "https://www.skyscanner.cl"),
+            ("Hopper", f"https://www.hopper.com/search/flights/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}", "[class*='FlightCard'], [class*='ResultCard'], .flight-card", "https://www.hopper.com", True)
         ]
-        
         all_found = []
         for name, url, sel, *extra in targets:
             root = extra[0] if extra else None
-            res = scrape_direct(p, name, url, sel, root_url=root)
+            is_mob = extra[1] if len(extra) > 1 else False
+            res = scrape_direct(p, name, url, sel, root_url=root, is_mobile=is_mob)
             if res: all_found.extend(res)
-
         if not all_found:
             enviar_telegram("<b>Monitor de Vuelos:</b> No se detectaron vuelos rápidos en esta pasada. 🫡")
             return
-
-        # Agrupar por fuente (Página Web) y quedarnos con el mejor de cada una
         best_per_source = {}
         for f in all_found:
             src = f["source"]
             if src not in best_per_source or f["price_val"] < best_per_source[src]["price_val"]:
                 best_per_source[src] = f
-
-        # Ordenar por precio
         sorted_results = sorted(best_per_source.values(), key=lambda x: x["price_val"])
-        
         mensaje = "✈️ <b>MEJORES OFERTAS POR PÁGINA WEB</b> ✈️\n\n"
         for r in sorted_results:
-            mensaje += f"🌐 <b>{r['source']}</b>\n"
-            mensaje += f"💰 Mejor Precio: <b>{r['price_str']}</b>\n"
-            mensaje += f"💺 Aerolínea detectada: {r['airline']}\n"
-            mensaje += f"⏱️ Duración: {r['dur']}\n"
-            mensaje += f"🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
-
+            mensaje += f"🌐 <b>{r['source']}</b>\n💰 Mejor Precio: <b>{r['price_str']}</b>\n💺 Aerolínea: {r['airline']}\n⏱️ Duración: {r['dur']}\n🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
         enviar_telegram(mensaje)
 
 if __name__ == "__main__":
