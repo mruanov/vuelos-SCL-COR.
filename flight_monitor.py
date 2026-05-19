@@ -12,6 +12,10 @@ FECHA_IDA = "2026-10-09"
 FECHA_VUELTA = "2026-10-12"
 MAX_DURACION_MINUTOS = 420 # 7 Horas
 
+# Formato Skyscanner (YYMMDD)
+YYMMDD_IDA = FECHA_IDA.replace("-", "")[2:]
+YYMMDD_VUELTA = FECHA_VUELTA.replace("-", "")[2:]
+
 USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
@@ -102,14 +106,13 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
         if root_url:
             try:
                 page.goto(root_url, wait_until="domcontentloaded", timeout=40000)
-                time.sleep(random.uniform(3, 5))
-                try: page.mouse.move(random.randint(100, 500), random.randint(100, 500))
-                except: pass
+                time.sleep(random.uniform(2, 4))
             except: pass
 
         page.goto(url, wait_until="domcontentloaded", timeout=95000)
         time.sleep(random.uniform(5, 8))
         
+        # BYPASS DE CONSENTIMIENTO
         selectors = ["button:has-text('Aceptar')", "button:has-text('Accept')", "button:has-text('Agree')", "button:has-text('Entendido')", ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button"]
         for sel in selectors:
             try:
@@ -125,13 +128,18 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
 
+        if len(items) == 0:
+            bt = page.inner_text("body").strip()[:300]
+            bt_clean = re.sub(r'\s+', ' ', bt)
+            print(f"      [DIAGNOSTIC] {name} Body: {bt_clean}...")
+
         for i, item in enumerate(items):
             try:
                 inner = item.inner_text()
                 if not inner or len(inner) < 30: continue
                 
-                # Detección de aerolínea
-                airline_detected = name
+                # Intentamos detectar la aerolínea para que sepa de qué trata el vuelo
+                airline_detected = "Varios"
                 known = ["LATAM", "JetSMART", "SKY", "Aerolíneas Argentinas", "Iberia", "Copa", "Flybondi", "Avianca"]
                 for k in known:
                     if k.lower() in inner.lower():
@@ -155,6 +163,7 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
                     
                     if all(m <= MAX_DURACION_MINUTOS for m in mins):
                         found_flights.append({
+                            "source": name,
                             "airline": airline_detected,
                             "price_str": p_str,
                             "price_val": p_val_norm,
@@ -171,11 +180,10 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
 def monitor():
     with sync_playwright() as p:
         targets = [
-            ("LATAM", f"https://www.latamairlines.com/cl/es/ofertas-vuelos?origin={ORIGEN}&outbound={FECHA_IDA}T12%3A00%3A00.000Z&destination={DESTINO}&inbound={FECHA_VUELTA}T12%3A00%3A00.000Z&adt=1&chd=0&inf=0&trip=RT&cabin=Economy&redemption=false", "li[role='listitem'], [class*='FlightItem'], .sc-fLcnxK", "https://www.latamairlines.com"),
             ("Google Flights", f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}&curr=CLP", "[role='listitem'], .mzYp9c, .yR1fYc"),
             ("Kayak", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a", ".nrc6, [class*='resultWrapper'], .Base-Results-ResultCard", "https://www.kayak.cl"),
-            ("SKY", f"https://www.skyairline.com/es-cl/flujo-compra/busqueda-vuelos?origin={ORIGEN}&destination={DESTINO}&departure={FECHA_IDA}&return={FECHA_VUELTA}&adults=1&children=0&infants=0", ".flight-item, [class*='FlightCard'], [class*='flightItem']", "https://www.skyairline.com"),
-            ("Kiwi.com", f"https://www.kiwi.com/en/search/results?origin={ORIGEN.lower()}&destination={DESTINO.lower()}&outboundDate={FECHA_IDA}&returnDate={FECHA_VUELTA}", "[data-test='ResultCardWrapper']", "https://www.kiwi.com")
+            ("Kiwi.com", f"https://www.kiwi.com/en/search/results/{ORIGEN.lower()}/{DESTINO.lower()}/{FECHA_IDA}/{FECHA_VUELTA}", "[data-test='ResultCardWrapper']", "https://www.kiwi.com"),
+            ("Skyscanner", f"https://www.skyscanner.cl/transport/vuelos/{ORIGEN.lower()}/{DESTINO.lower()}/{YYMMDD_IDA}/{YYMMDD_VUELTA}/?adultsv2=1&cabinclass=economy&rtn=1", "[class*='Ticket_container'], [class*='ResultCard'], .FlightsResults_item")
         ]
         
         all_found = []
@@ -188,20 +196,21 @@ def monitor():
             enviar_telegram("<b>Monitor de Vuelos:</b> No se detectaron vuelos rápidos en esta pasada. 🫡")
             return
 
-        # Agrupar por aerolínea y quedarnos con el mejor de cada una
-        best_per_airline = {}
+        # Agrupar por fuente (Página Web) y quedarnos con el mejor de cada una
+        best_per_source = {}
         for f in all_found:
-            air = f["airline"]
-            if air not in best_per_airline or f["price_val"] < best_per_airline[air]["price_val"]:
-                best_per_airline[air] = f
+            src = f["source"]
+            if src not in best_per_source or f["price_val"] < best_per_source[src]["price_val"]:
+                best_per_source[src] = f
 
         # Ordenar por precio
-        sorted_results = sorted(best_per_airline.values(), key=lambda x: x["price_val"])
+        sorted_results = sorted(best_per_source.values(), key=lambda x: x["price_val"])
         
-        mensaje = "✈️ <b>MEJORES PRECIOS POR AEROLÍNEA</b> ✈️\n\n"
+        mensaje = "✈️ <b>MEJORES OFERTAS POR PÁGINA WEB</b> ✈️\n\n"
         for r in sorted_results:
-            mensaje += f"✅ <b>{r['airline']}</b>\n"
-            mensaje += f"💰 Precio: <b>{r['price_str']}</b>\n"
+            mensaje += f"🌐 <b>{r['source']}</b>\n"
+            mensaje += f"💰 Mejor Precio: <b>{r['price_str']}</b>\n"
+            mensaje += f"💺 Aerolínea detectada: {r['airline']}\n"
             mensaje += f"⏱️ Duración: {r['dur']}\n"
             mensaje += f"🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
 
