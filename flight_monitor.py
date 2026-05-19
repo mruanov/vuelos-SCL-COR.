@@ -56,10 +56,10 @@ def scrape_direct(p, name, url, item_selector):
     rejected_count = 0
     browser = None
     try:
-        stealth_applied = False
+        stealth_func = None
         try:
-            import playwright_stealth
-            stealth_applied = True
+            from playwright_stealth import stealth
+            stealth_func = stealth
         except ImportError:
             pass
 
@@ -71,9 +71,9 @@ def scrape_direct(p, name, url, item_selector):
             timezone_id="America/Santiago"
         )
         page = context.new_page()
-        
-        if stealth_applied:
-            playwright_stealth.stealth(page)
+
+        if stealth_func:
+            stealth_func(page)
         else:
             page.add_init_script("""
                 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -109,7 +109,8 @@ def scrape_direct(p, name, url, item_selector):
 
         if len(items) == 0:
             bt = page.inner_text("body").strip()[:300]
-            print(f"      [DIAGNOSTIC] {name} Body: {re.sub(r'\\s+', ' ', bt)}...")
+            bt_clean = re.sub(r'\s+', ' ', bt)
+            print(f"      [DIAGNOSTIC] {name} Body: {bt_clean}...")
 
         for i, item in enumerate(items):
             try:
