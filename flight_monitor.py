@@ -50,19 +50,55 @@ def get_minutes_robust(text):
     # Si detecto algo muy bajo (como 1 min), probablemente es error de parsing
     return total if total > 20 else 9999 
 
+def apply_stealth_robust(context, page):
+    """Prueba multiples formas de aplicar stealth segun la version instalada."""
+    try:
+        import playwright_stealth
+        # 1. Intentar API v2.0+ (Clase Stealth)
+        try:
+            from playwright_stealth import Stealth
+            Stealth().apply_stealth_sync(context)
+            return True
+        except: pass
+        
+        # 2. Intentar stealth_sync directo
+        try:
+            from playwright_stealth import stealth_sync
+            stealth_sync(page)
+            return True
+        except: pass
+        
+        # 3. Intentar stealth (version vieja)
+        try:
+            from playwright_stealth import stealth
+            # Si stealth es un modulo, buscamos la funcion dentro
+            if hasattr(stealth, 'stealth'):
+                stealth.stealth(page)
+                return True
+            elif callable(stealth):
+                stealth(page)
+                return True
+        except: pass
+    except ImportError:
+        pass
+    
+    # Polyfill manual si falla todo lo anterior
+    try:
+        page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'languages', { get: () => ['es-CL', 'es', 'en-US', 'en'] });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+        """)
+    except: pass
+    return False
+
 def scrape_direct(p, name, url, item_selector):
     print(f"Entrando a {name}...")
     valid_flights = []
     rejected_count = 0
     browser = None
     try:
-        stealth_func = None
-        try:
-            from playwright_stealth import stealth
-            stealth_func = stealth
-        except ImportError:
-            pass
-
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -71,15 +107,8 @@ def scrape_direct(p, name, url, item_selector):
             timezone_id="America/Santiago"
         )
         page = context.new_page()
-
-        if stealth_func:
-            stealth_func(page)
-        else:
-            page.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-                window.chrome = { runtime: {} };
-                Object.defineProperty(navigator, 'languages', { get: () => ['es-CL', 'es', 'en-US', 'en'] });
-            """)
+        
+        apply_stealth_robust(context, page)
 
         page.goto(url, wait_until="domcontentloaded", timeout=90000)
         
