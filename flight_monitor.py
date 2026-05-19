@@ -74,11 +74,11 @@ def scrape_direct(p, name, url, item_selector):
         if stealth_applied:
             stealth(page)
         else:
-            page.add_init_script(\"\"\"
+            page.add_init_script("""
                 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
                 window.chrome = { runtime: {} };
                 Object.defineProperty(navigator, 'languages', { get: () => ['es-CL', 'es', 'en-US', 'en'] });
-            \"\"\")
+            """)
 
         page.goto(url, wait_until="domcontentloaded", timeout=90000)
         
