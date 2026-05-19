@@ -105,10 +105,11 @@ def scrape_direct(p, name, url, item_selector, root_url=None, is_mobile=False):
             try:
                 page.goto(root_url, wait_until="domcontentloaded", timeout=40000)
                 time.sleep(random.uniform(3, 5))
+                page.mouse.move(random.randint(0, 100), random.randint(0, 100))
             except: pass
 
         page.goto(url, wait_until="domcontentloaded", timeout=95000)
-        time.sleep(random.uniform(10, 15))
+        time.sleep(random.uniform(12, 18))
         
         selectors = ["button:has-text('Aceptar')", "button:has-text('Accept')", "button:has-text('Agree')", "button:has-text('Entendido')", ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button", "#onetrust-accept-btn-handler"]
         for sel in selectors:
@@ -119,8 +120,8 @@ def scrape_direct(p, name, url, item_selector, root_url=None, is_mobile=False):
             except: pass
 
         for _ in range(3):
-            page.evaluate("window.scrollBy(0, 500)")
-            time.sleep(2)
+            page.evaluate(f"window.scrollBy(0, {random.randint(400, 800)})")
+            time.sleep(random.uniform(2, 4))
 
         try: page.wait_for_selector(item_selector, timeout=35000)
         except: pass
@@ -166,7 +167,7 @@ def monitor():
         targets = [
             ("Google Flights", f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{FECHA_IDA}%20through%20{FECHA_VUELTA}&curr=CLP", "[role='listitem'], .mzYp9c, .yR1fYc"),
             ("Kayak", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}?sort=price_a", ".nrc6, [class*='resultWrapper'], .Base-Results-ResultCard", "https://www.kayak.cl"),
-            ("Kiwi.com", f"https://www.kiwi.com/en/search/results/{ORIGEN.lower()}/{DESTINO.lower()}/{FECHA_IDA}/{FECHA_VUELTA}", "[data-test='ResultCardWrapper']", "https://www.kiwi.com"),
+            ("Kiwi.com", f"https://www.kiwi.com/en/search/results?origin={ORIGEN.lower()}&destination={DESTINO.lower()}&outboundDate={FECHA_IDA}&returnDate={FECHA_VUELTA}&adults=1&tripType=return", "[data-test='ResultCardWrapper'], .ResultCardWrapper", "https://www.kiwi.com"),
             ("Skyscanner", f"https://www.skyscanner.cl/transport/vuelos/{ORIGEN.lower()}/{DESTINO.lower()}/{YYMMDD_IDA}/{YYMMDD_VUELTA}/?adultsv2=1&cabinclass=economy&rtn=1", "[class*='Ticket_container'], [class*='ResultCard'], .FlightsResults_item", "https://www.skyscanner.cl"),
             ("Hopper", f"https://www.hopper.com/search/flights/{ORIGEN}/{DESTINO}/{FECHA_IDA}/{FECHA_VUELTA}", "[class*='FlightCard'], [class*='ResultCard'], .flight-card", "https://www.hopper.com", True)
         ]
