@@ -53,11 +53,12 @@ def get_minutes_robust(text):
 def scrape_direct(p, name, url, item_selector):
     print(f"Entrando a {name}...")
     valid_flights = []
+    rejected_count = 0
     browser = None
     try:
         stealth_applied = False
         try:
-            from playwright_stealth import stealth
+            import playwright_stealth
             stealth_applied = True
         except ImportError:
             pass
@@ -72,7 +73,7 @@ def scrape_direct(p, name, url, item_selector):
         page = context.new_page()
         
         if stealth_applied:
-            stealth(page)
+            playwright_stealth.stealth(page)
         else:
             page.add_init_script("""
                 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -108,9 +109,8 @@ def scrape_direct(p, name, url, item_selector):
 
         if len(items) == 0:
             bt = page.inner_text("body").strip()[:300]
-            print(f"      [DIAGNOSTIC] {name} Body: {bt}...")
+            print(f"      [DIAGNOSTIC] {name} Body: {re.sub(r'\\s+', ' ', bt)}...")
 
-        rejected_count = 0
         for i, item in enumerate(items):
             try:
                 inner = item.inner_text()
