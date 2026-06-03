@@ -1,17 +1,20 @@
-name: Flight Monitor SCL-COR
+name: Flight Monitor SCL-BKK (Thailand)
 
 on:
   schedule:
-    # Corre 4 veces al día (cada 6 horas UTC)
-    # 00:00, 06:00, 12:00, 18:00 UTC
-    # (Aprox 20:00, 02:00, 08:00, 14:00 Hora Chile)
-    - cron: '0 0,6,12,18 * * *'
+    # Corre 3 veces al día en horarios de Chile (09:00, 15:00, 21:00)
+    # Equivalente en UTC (13:00, 19:00, 01:00 del día siguiente)
+    - cron: '0 1,13,19 * * *'
   workflow_dispatch: 
+
+# Permisos requeridos para poder hacer push del historial (CSV) de vuelta al repositorio
+permissions:
+  contents: write
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,18 +22,27 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Versión más moderna y estable
-          cache: 'pip' # Acelera las ejecuciones futuras
+          python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install playwright requests playwright-stealth
+          pip install -r requirements.txt
           python -m playwright install --with-deps chromium
 
-      - name: Run Monitor
+      - name: Run Monitor (Búsqueda Flexible Tailandia)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          PYTHONUNBUFFERED: "1" # Asegura que los logs se vean en tiempo real
-        run: python flight_monitor.py
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python flight_monitor.py --flexible --meses-rango 3 --duracion-min 15 --duracion-max 30
+
+      - name: Commit and Push Price History
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add flight_price_history.csv
+          git commit -m "chore: update flight price history [skip ci]" || echo "No changes to commit"
+          git push
