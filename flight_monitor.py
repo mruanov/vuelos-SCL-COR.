@@ -188,7 +188,9 @@ def monitor(date_combinations):
             
             targets = [
                 ("Google Flights", f"https://www.google.com/travel/flights?q=Flights%20to%20{DESTINO}%20from%20{ORIGEN}%20on%20{ida}%20through%20{vuelta}&curr=CLP", "[role='listitem'], .mzYp9c, .yR1fYc"),
-                ("Kayak", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{ida}/{vuelta}?sort=price_a", ".nrc6, [class*='resultWrapper'], .Base-Results-ResultCard", "https://www.kayak.cl")
+                ("Kayak", f"https://www.kayak.cl/flights/{ORIGEN}-{DESTINO}/{ida}/{vuelta}?sort=price_a", ".nrc6, [class*='resultWrapper'], .Base-Results-ResultCard", "https://www.kayak.cl"),
+                ("Skyscanner", f"https://www.skyscanner.cl/transporte/vuelos/{ORIGEN}/{DESTINO}/{ida}/{vuelta}/?rtn=1&preferdirects=false&outboundaltsenabled=false&inboundaltsenabled=false&ref=home&curr=CLP", "[class*='Ticket_wrapper'], [data-testid*='ticket'], [class*='TicketContainer'], .FlightsTicket_container__", "https://www.skyscanner.cl"),
+                ("Hopper", f"https://hopper.com/search/flights/{ORIGEN}/{DESTINO}/{ida}/{vuelta}", "[class*='FlightResult'], [class*='ResultCard'], [data-testid*='result-card'], .search-result", "https://hopper.com")
             ]
             
             for name, url, sel, *extra in targets:
@@ -196,8 +198,8 @@ def monitor(date_combinations):
                 res = scrape_direct(p, name, url, sel, root_url=root)
                 if res:
                     for r in res:
-                        r["fecha_ida"] = idx_ida = ida
-                        r["fecha_vuelta"] = idx_vuelta = vuelta
+                        r["fecha_ida"] = ida
+                        r["fecha_vuelta"] = vuelta
                     all_found.extend(res)
                     
             # Breve pausa entre búsquedas para parecer humano
@@ -211,24 +213,47 @@ def monitor(date_combinations):
     # Guardar en el historial de precios local
     guardar_en_historial(all_found)
 
-    # Agrupar los mejores precios por aerolínea e incluir las fechas correspondientes
-    best_per_airline = {}
+    # 1. Filtrar duplicados exactos y armar Top 5 vuelos más baratos
+    seen = set()
+    unique_flights = []
     for f in all_found:
+        key = (f["airline"], f["price_val"], f.get("fecha_ida"), f.get("fecha_vuelta"), f["source"])
+        if key not in seen:
+            seen.add(key)
+            unique_flights.append(f)
+            
+    sorted_all = sorted(unique_flights, key=lambda x: x["price_val"])[:5]
+    
+    mensaje = f"✈️ <b>TOP 5 VUELOS MÁS BARATOS ({ORIGEN} ➔ {DESTINO})</b> ✈️\n\n"
+    for i, r in enumerate(sorted_all):
+        clp_val = int(r["price_val"] * 950)
+        clp_str = f"${clp_val:,}".replace(",", ".")
+        mensaje += f"<b>{i+1}. {r['airline']}</b>\n"
+        mensaje += f"   📅 Fechas: <b>{r.get('fecha_ida')}</b> al <b>{r.get('fecha_vuelta')}</b>\n"
+        mensaje += f"   💰 Precio: <b>{clp_str} CLP</b> (~USD {int(r['price_val'])})\n"
+        mensaje += f"   🌐 Encontrado en: <b>{r['source']}</b>\n"
+        mensaje += f"   ⏱️ Duración: {r['dur']}\n"
+        mensaje += f"   🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
+
+    # 2. Agrupar los mejores precios por aerolínea e incluir las fechas correspondientes
+    best_per_airline = {}
+    for f in unique_flights:
         air = f["airline"]
-        # Guardamos la opción más barata por aerolínea (incluso si está en distintas fechas)
         if air not in best_per_airline or f["price_val"] < best_per_airline[air]["price_val"]:
             best_per_airline[air] = f
 
     sorted_results = sorted(best_per_airline.values(), key=lambda x: x["price_val"])
     
-    mensaje = f"✈️ <b>MEJORES PRECIOS POR AEROLÍNEA ({ORIGEN} ➔ {DESTINO})</b> ✈️\n\n"
+    mensaje += "---\n✈️ <b>MEJORES PRECIOS POR AEROLÍNEA</b> ✈️\n\n"
     for r in sorted_results:
+        clp_val = int(r["price_val"] * 950)
+        clp_str = f"${clp_val:,}".replace(",", ".")
         mensaje += f"✅ <b>{r['airline']}</b>\n"
-        mensaje += f"📅 Fechas: <b>{r.get('fecha_ida')}</b> al <b>{r.get('fecha_vuelta')}</b>\n"
-        mensaje += f"💰 Precio: <b>{r['price_str']}</b> (USD {int(r['price_val'])})\n"
-        mensaje += f"🌐 Encontrado en: {r['source']}\n"
-        mensaje += f"⏱️ Duración: {r['dur']}\n"
-        mensaje += f"🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
+        mensaje += f"   📅 Fechas: <b>{r.get('fecha_ida')}</b> al <b>{r.get('fecha_vuelta')}</b>\n"
+        mensaje += f"   💰 Precio: <b>{clp_str} CLP</b> (~USD {int(r['price_val'])})\n"
+        mensaje += f"   🌐 Encontrado en: <b>{r['source']}</b>\n"
+        mensaje += f"   ⏱️ Duración: {r['dur']}\n"
+        mensaje += f"   🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
 
     # Agregar el análisis de tendencias e histórico
     try:
