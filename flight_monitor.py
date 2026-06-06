@@ -155,8 +155,14 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
                 mins = [get_minutes_robust(d) for d in dur_matches]
                 mins = [m for m in mins if 20 < m < 3000]
                 
-                p_match = re.search(r'(?:\$|CLP|USD|pesos)?\s?(\d+[\.\,]\d{3})', inner, re.IGNORECASE)
-                if not p_match: p_match = re.search(r'(\d{5,})', inner)
+                # Enforce currency symbol (before or after) and support multi-dot separators (e.g. 2.856.135)
+                p_match = re.search(r'(?:\$|CLP|USD|pesos)\s*(\d+[\.\,]\d{3}(?:[\.\,]\d{3})*)', inner, re.IGNORECASE)
+                if not p_match:
+                    p_match = re.search(r'(\d+[\.\,]\d{3}(?:[\.\,]\d{3})*)\s*(?:\$|CLP|USD|pesos)', inner, re.IGNORECASE)
+                if not p_match:
+                    p_match = re.search(r'(?:\$|CLP|USD|pesos)\s*(\d{4,})', inner, re.IGNORECASE)
+                if not p_match:
+                    p_match = re.search(r'(\d{4,})\s*(?:\$|CLP|USD|pesos)', inner, re.IGNORECASE)
                 
                 if p_match and mins:
                     p_str = p_match.group(0).strip()
