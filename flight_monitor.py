@@ -108,8 +108,8 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
                 time.sleep(random.uniform(2, 4))
             except: pass
 
-        page.goto(url, wait_until="domcontentloaded", timeout=95000)
-        time.sleep(random.uniform(10, 15))
+        page.goto(url, wait_until="domcontentloaded", timeout=35000)
+        time.sleep(random.uniform(4, 7))
         
         # BYPASS CONSENTIMIENTO
         selectors = ["button:has-text('Aceptar')", "button:has-text('Accept')", "button:has-text('Agree')", "button:has-text('Entendido')", ".VfPpkd-LgbsSe", "[id*='cookie'] button", "[class*='cookie'] button"]
@@ -117,12 +117,12 @@ def scrape_direct(p, name, url, item_selector, root_url=None):
             try:
                 if page.locator(sel).first.is_visible():
                     page.locator(sel).first.click()
-                    time.sleep(2)
+                    time.sleep(1)
             except: pass
 
-        try: page.wait_for_selector(item_selector, timeout=35000)
+        try: page.wait_for_selector(item_selector, timeout=12000)
         except: pass
-        time.sleep(random.uniform(5, 10))
+        time.sleep(random.uniform(2, 5))
         
         items = page.query_selector_all(item_selector)
         print(f"   -> {name}: {len(items)} elementos detectados.")
@@ -204,7 +204,7 @@ def monitor(date_combinations):
                     
             # Breve pausa entre búsquedas para parecer humano
             if idx < len(date_combinations) - 1:
-                time.sleep(random.uniform(3, 7))
+                time.sleep(random.uniform(2, 4))
 
     if not all_found:
         enviar_telegram(f"<b>Monitor de Vuelos:</b> No se detectaron vuelos en esta pasada para ninguna combinación de fecha. 🫡")
@@ -386,10 +386,10 @@ def generar_combinaciones_fechas(fecha_inicio_str, cantidad_meses=3, duracion_mi
         else:
             current += timedelta(days=1)
             
-    # Para evitar bloqueos, seleccionamos un máximo de 8 combinaciones bien distribuidas
-    if len(date_list) > 8:
-        step = len(date_list) // 8
-        date_list = date_list[::step][:8]
+    # Para evitar bloqueos, seleccionamos un máximo de 4 combinaciones bien distribuidas
+    if len(date_list) > 4:
+        step = len(date_list) // 4
+        date_list = date_list[::step][:4]
         
     return date_list
 
