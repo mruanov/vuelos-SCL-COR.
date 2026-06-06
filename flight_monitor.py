@@ -213,13 +213,13 @@ def monitor(date_combinations):
                 time.sleep(random.uniform(2, 4))
 
     if not all_found:
-        enviar_telegram(f"<b>Monitor de Vuelos:</b> No se detectaron vuelos en esta pasada para ninguna combinación de fecha. 🫡")
+        enviar_telegram("✈️ No se detectaron vuelos en esta búsqueda.")
         return
 
     # Guardar en el historial de precios local
     guardar_en_historial(all_found)
 
-    # 1. Filtrar duplicados exactos y armar Top 5 vuelos más baratos
+    # 1. Filtrar duplicados exactos y armar Top 4 vuelos más baratos
     seen = set()
     unique_flights = []
     for f in all_found:
@@ -228,45 +228,25 @@ def monitor(date_combinations):
             seen.add(key)
             unique_flights.append(f)
             
-    sorted_all = sorted(unique_flights, key=lambda x: x["price_val"])[:5]
+    sorted_all = sorted(unique_flights, key=lambda x: x["price_val"])[:4]
     
-    mensaje = f"✈️ <b>TOP 5 VUELOS MÁS BARATOS ({ORIGEN} ➔ {DESTINO})</b> ✈️\n\n"
+    mensaje = "✈️ <b>Top 4 Vuelos Más Baratos (SCL ➔ BKK)</b>\n\n"
     for i, r in enumerate(sorted_all):
         clp_val = int(r["price_val"] * 950)
         clp_str = f"${clp_val:,}".replace(",", ".")
-        mensaje += f"<b>{i+1}. {r['airline']}</b>\n"
-        mensaje += f"   📅 Fechas: <b>{r.get('fecha_ida')}</b> al <b>{r.get('fecha_vuelta')}</b>\n"
-        mensaje += f"   💰 Precio: <b>{clp_str} CLP</b> (~USD {int(r['price_val'])})\n"
-        mensaje += f"   🌐 Encontrado en: <b>{r['source']}</b>\n"
-        mensaje += f"   ⏱️ Duración: {r['dur']}\n"
-        mensaje += f"   🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
-
-    # 2. Agrupar los mejores precios por aerolínea e incluir las fechas correspondientes
-    best_per_airline = {}
-    for f in unique_flights:
-        air = f["airline"]
-        if air not in best_per_airline or f["price_val"] < best_per_airline[air]["price_val"]:
-            best_per_airline[air] = f
-
-    sorted_results = sorted(best_per_airline.values(), key=lambda x: x["price_val"])
-    
-    mensaje += "---\n✈️ <b>MEJORES PRECIOS POR AEROLÍNEA</b> ✈️\n\n"
-    for r in sorted_results:
-        clp_val = int(r["price_val"] * 950)
-        clp_str = f"${clp_val:,}".replace(",", ".")
-        mensaje += f"✅ <b>{r['airline']}</b>\n"
-        mensaje += f"   📅 Fechas: <b>{r.get('fecha_ida')}</b> al <b>{r.get('fecha_vuelta')}</b>\n"
-        mensaje += f"   💰 Precio: <b>{clp_str} CLP</b> (~USD {int(r['price_val'])})\n"
-        mensaje += f"   🌐 Encontrado en: <b>{r['source']}</b>\n"
-        mensaje += f"   ⏱️ Duración: {r['dur']}\n"
-        mensaje += f"   🔗 <a href='{r['url']}'>Link Directo</a>\n\n"
-
-    # Agregar el análisis de tendencias e histórico
-    try:
-        reporte_tendencias = analizar_tendencias(all_found)
-        mensaje += "---\n" + reporte_tendencias
-    except Exception as e:
-        mensaje += f"\nError en análisis de tendencias: {e}"
+        try:
+            ida_dt = datetime.strptime(r.get('fecha_ida'), "%Y-%m-%d")
+            vuelta_dt = datetime.strptime(r.get('fecha_vuelta'), "%Y-%m-%d")
+            meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+            ida_str = f"{ida_dt.day} {meses[ida_dt.month - 1]} {ida_dt.year}"
+            vuelta_str = f"{vuelta_dt.day} {meses[vuelta_dt.month - 1]} {vuelta_dt.year}"
+            dates_formatted = f"{ida_str} al {vuelta_str}"
+        except Exception:
+            dates_formatted = f"{r.get('fecha_ida')} al {r.get('fecha_vuelta')}"
+            
+        mensaje += f"<b>{i+1}. {r['airline']}</b> ({r['source']})\n"
+        mensaje += f"📅 {dates_formatted}\n"
+        mensaje += f"💰 <b>{clp_str} CLP</b>\n\n"
 
     enviar_telegram(mensaje)
 
@@ -364,38 +344,53 @@ def analizar_tendencias(current_flights):
     return report
 
 def generar_combinaciones_fechas(fecha_inicio_str, cantidad_meses=3, duracion_min=15, duracion_max=30):
+    current_date = datetime.now()
+    
+    # Determinar inicio del rango:
+    # Si la fecha de inicio es anterior a noviembre de 2026, forzamos a que empiece en noviembre
     try:
         start_date = datetime.strptime(fecha_inicio_str, "%Y-%m-%d")
     except Exception:
-        start_date = datetime.now() + timedelta(days=30)
+        start_date = datetime(2026, 11, 1)
         
-    # Si la fecha de inicio es anterior a noviembre de 2026, forzamos a que empiece en noviembre
     if start_date < datetime(2026, 11, 1):
         start_date = datetime(2026, 11, 1)
         
-    date_list = []
-    current = start_date
-    end_date = start_date + timedelta(days=cantidad_meses * 30)
+    # Si la fecha de inicio es anterior a "hoy + 2 días", ajustamos a "hoy + 2 días"
+    if start_date < current_date + timedelta(days=2):
+        start_date = current_date + timedelta(days=2)
+        
+    # Fin del rango: el próximo año "cuando sea" (máximo permitido por las aerolíneas ~330 días en el futuro)
+    # Menos la duración máxima de la estadía para evitar pasarse del límite de búsqueda de la vuelta.
+    max_days_forward = 330 - duracion_max
+    end_date = current_date + timedelta(days=max_days_forward)
     
-    # Buscamos viernes (4) o sábados (5) para las salidas
-    while current < end_date:
-        if current.weekday() in (4, 5):
-            ida = current.strftime("%Y-%m-%d")
-            # Agregamos estadías corta (min) y larga (max)
-            vuelta_min = (current + timedelta(days=duracion_min)).strftime("%Y-%m-%d")
-            vuelta_max = (current + timedelta(days=duracion_max)).strftime("%Y-%m-%d")
+    if end_date <= start_date:
+        # Ventana mínima por si acaso
+        end_date = start_date + timedelta(days=60)
+        
+    total_days = (end_date - start_date).days
+    
+    date_list = []
+    
+    # Seleccionar 4 combinaciones aleatorias bien distribuidas en este rango
+    # Dividimos el rango total en 4 sub-intervalos para garantizar que cubrimos distintos meses del año
+    interval_size = total_days // 4
+    for i in range(4):
+        sub_start = start_date + timedelta(days=i * interval_size)
+        sub_end = start_date + timedelta(days=(i + 1) * interval_size - 1)
+        if sub_end <= sub_start:
+            sub_end = sub_start + timedelta(days=2)
             
-            date_list.append((ida, vuelta_min))
-            date_list.append((ida, vuelta_max))
-            
-            current += timedelta(days=14) # Avanzar dos semanas para muestrear
-        else:
-            current += timedelta(days=1)
-            
-    # Para evitar bloqueos, seleccionamos un máximo de 4 combinaciones bien distribuidas
-    if len(date_list) > 4:
-        step = len(date_list) // 4
-        date_list = date_list[::step][:4]
+        days_in_sub = (sub_end - sub_start).days
+        random_offset = random.randint(0, max(0, days_in_sub))
+        ida_date = sub_start + timedelta(days=random_offset)
+        
+        # Estadía de mínimo duracion_min días (el día que sea, sin importar el día de la semana)
+        duracion = random.randint(duracion_min, duracion_max)
+        vuelta_date = ida_date + timedelta(days=duracion)
+        
+        date_list.append((ida_date.strftime("%Y-%m-%d"), vuelta_date.strftime("%Y-%m-%d")))
         
     return date_list
 
@@ -425,7 +420,7 @@ if __name__ == "__main__":
     if args.flexible:
         date_combinations = generar_combinaciones_fechas(FECHA_IDA, args.meses_rango, args.duracion_min, args.duracion_max)
         print(f"Buscando vuelos de forma FLEXIBLE desde {ORIGEN} a {DESTINO}")
-        print(f"Explorando {len(date_combinations)} combinaciones de fin de semana durante los próximos {args.meses_rango} meses.")
+        print(f"Explorando {len(date_combinations)} combinaciones aleatorias de fechas (desde Noviembre 2026 en adelante).")
         print(f"Rango de estadía: {args.duracion_min} a {args.duracion_max} días | Duración máxima de vuelo: {MAX_DURACION_MINUTOS} minutos ({(MAX_DURACION_MINUTOS/60):.1f} horas)")
     else:
         date_combinations = [(FECHA_IDA, FECHA_VUELTA)]
